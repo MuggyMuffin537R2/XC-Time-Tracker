@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Race Split Taker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Splits">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#d9480f">
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1b1b1a;--mut:#77756e;--ac:#d9480f;--ln:#e4e2db;--ok:#2b8a3e;--bad:#c92a2a;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--card:#222220;--tx:#f1efe8;--mut:#a09d92;--ac:#ff7a3d;--ln:#35342f;--ok:#69db7c;--bad:#ff8787;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151514;--card:#222220;--tx:#f1efe8;--mut:#a09d92;--ac:#ff7a3d;--ln:#35342f;--ok:#69db7c;--bad:#ff8787;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+body.dragging,body.dragging *{user-select:none;-webkit-user-select:none;cursor:grabbing!important}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}h2{font-size:18px;margin:0 0 8px}
+.list{position:relative}
+.row{height:56px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:0 12px 0 0;margin-bottom:8px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.row.drag{background:color-mix(in srgb,var(--ac) 16%,var(--card));border-color:var(--ac);box-shadow:0 8px 22px #0005;z-index:5;position:relative}
+.h{touch-action:none;cursor:grab;font-size:22px;color:var(--mut);padding:0 8px 0 14px;height:100%;display:flex;align-items:center;user-select:none;-webkit-user-select:none}
+.row.drag .h{color:var(--ac)}
+.nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm small{display:block;font-weight:400;font-size:12px;color:var(--mut);overflow:hidden;text-overflow:ellipsis}
+.x{background:none;border:0;color:var(--mut);font-size:24px;cursor:pointer;padding:0 6px}
+.add{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+input,select{flex:1;min-width:0;width:100%;font:inherit;padding:12px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx)}
+.add input{width:auto}
+.add .sm{flex:0 0 100px}
+.add .lb{flex:1;font-weight:600}
+button.p{font:inherit;font-weight:700;border:0;border-radius:10px;background:var(--ac);color:#fff;padding:12px 18px;cursor:pointer}
+button.p:disabled{opacity:.4}
+button.s{font:inherit;border:1px solid var(--ln);border-radius:10px;background:var(--card);color:var(--tx);padding:10px 16px;cursor:pointer}
+.hint{color:var(--mut);font-size:14px;margin:0 0 10px}
+.clock{font:700 56px/1.1 ui-monospace,Menlo,monospace;text-align:center;margin:8px 0}
+.lap{width:100%;height:96px;font-size:26px;border-radius:16px;margin-bottom:12px}
+.bar{display:flex;gap:8px;margin-bottom:12px}.bar>*{flex:1}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;padding-bottom:4px}
+.tab{flex:none;font:inherit;font-size:14px;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:999px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.bar .tab{padding:12px 14px;font-size:16px}
+.tab.on{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.grid{display:flex;gap:8px}
+.slots{width:100px;flex:none}
+.slot{height:56px;margin-bottom:8px;display:flex;flex-direction:column;justify-content:center;padding-left:4px;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+.slot b{font-size:15px;font-family:system-ui,sans-serif}
+.slot small{color:var(--mut);font-size:12px}
+.slot span[data-ti]{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+#act{flex:1;min-width:0}
+.b{font-size:13px;font-weight:700;white-space:nowrap}
+.up{color:var(--ok)}.dn{color:var(--bad)}.eq{color:var(--mut)}
+.pd{color:var(--mut);font-size:12px;white-space:nowrap}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.card ol{margin:6px 0 0;padding-left:22px}.card li{padding:2px 0;font-weight:600}
+.ov{position:fixed;inset:0;background:#0007;display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.mdl{background:var(--card);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow:auto}
+.rr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--ln);padding:4px 0;font-weight:600}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+.rr input{margin:4px 8px 4px 0;padding:8px 10px;font-weight:600}
+.flash{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));background:var(--ac);color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;z-index:30;display:none;box-shadow:0 4px 14px #0004;white-space:nowrap}
+textarea{background:var(--card);color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:8px;font-family:ui-monospace,Menlo,monospace}
+summary{cursor:pointer;margin:8px 0}
+</style></head><body><main id="app"></main><div id="modal"></div>
+
+
+<script src="qrgen.js"></script>
+<script src="jsQR.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let S={phase:'setup',order:[],pred:[],marks:[],def:{label:'Marker 1',dist:''},total:'',unit:'mi',markers:[],cur:0,start:0,final:0,raf:0,nid:1,rid:'',epoch:0,flash:'',modal:null,draft:null};
+const M=()=>S.markers[S.cur];
+const mks=()=>S.marks.length?S.marks:[S.def];
+const fmt=ms=>{const t=Math.floor(ms/10),c=t%100,s=Math.floor(t/100)%60,m=Math.floor(t/6000);return m+':'+String(s).padStart(2,'0')+'.'+String(c).padStart(2,'0')};
+const fmtE=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const parse=s=>{s=String(s).trim();if(!s)return null;const p=s.split(':');let v;if(p.length===2)v=(+p[0])*60+(+p[1]);else if(p.length===1)v=+p[0];else return null;return isNaN(v)||v<0?null:Math.round(v*1000)};
+const now=()=>S.phase==='race'?performance.now()-S.start:S.final;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const byId=id=>S.order.find(p=>p.id==id);
+const ord=i=>(i+1)+(['st','nd','rd'][i]||'th');
+const timeAt=(mk,id)=>{const i=mk.actual.indexOf(id);return i>=0&&mk.laps[i]!=null?mk.laps[i]:null};
+function paceInfo(id){for(let j=S.markers.length-1;j>=0;j--){const mk=S.markers[j],d=+mk.dist;if(!(d>0))continue;const t=timeAt(mk,id);if(t!=null&&t>0)return{t,d}}return null}
+
+function sortable(el,done){
+  el.querySelectorAll('.h').forEach(h=>{
+    h.addEventListener('contextmenu',e=>e.preventDefault());
+    h.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      const row=h.closest('.row');h.setPointerCapture(e.pointerId);
+      row.classList.add('drag');document.body.classList.add('dragging');
+      const startY=e.clientY,startTop=row.offsetTop;
+      const mv=ev=>{
+        const others=[...el.children].filter(r=>r!==row);
+        let idx=0;
+        for(const r of others){const b=r.getBoundingClientRect();if(ev.clientY>b.top+b.height/2)idx++}
+        if(idx!==[...el.children].indexOf(row))el.insertBefore(row,others[idx]||null);
+        row.style.transform=`translateY(${ev.clientY-startY-(row.offsetTop-startTop)}px) scale(1.02)`;
+      };
+      const up=()=>{
+        h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
+        row.style.transform='';row.classList.remove('drag');document.body.classList.remove('dragging');
+        done([...el.children].map(r=>r.dataset.id));
+      };
+      h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+    });
+  });
+}
+
+function render(){draw();renderModal();flashUI()}
+
+function draw(){
+  const a=$('#app');
+  if(S.phase==='setup'){
+    a.innerHTML=`<h1>Race Split Taker</h1>
+    <button class="s" id="scn" style="width:100%;margin-bottom:12px">Import code</button>
+    <div class="add"><input id="in" placeholder="Add a name" autocomplete="off"><button class="p" id="addb">Add</button></div>
+    <p class="hint">Drag ☰ to set your predicted finish order (top = first).</p>
+    <div class="list" id="lst">${S.order.map(p=>`<div class="row" data-id="${p.id}"><span class="h">☰</span><span class="nm">${esc(p.name)}</span><button class="x" data-x="${p.id}">×</button></div>`).join('')}</div>
+    <h1 style="font-size:16px;margin-top:18px">Markers</h1>
+    <p class="hint">Add the points you’ll take splits at (e.g. Mile 1, Mile 2, Finish). Leave empty for one marker; you can add more during the race.</p>
+    <div class="add"><input id="min" placeholder="Marker name" autocomplete="off"><button class="s" id="addmk">Add</button></div>
+    <div class="tabs" style="flex-wrap:wrap">${S.marks.map((k,i)=>`<button class="tab" data-m="${i}">${i+1}. ${esc(k.label)} ×</button>`).join('')}</div>
+    <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>`;
+    const add=()=>{const v=$('#in').value.trim();if(!v)return;S.order.push({id:S.nid++,name:v});render();$('#in').focus()};
+    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();
+    a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.order=S.order.filter(p=>p.id!=b.dataset.x);render()});
+    sortable($('#lst'),ids=>{S.order=ids.map(byId);render()});
+    const addMk=()=>{const v=$('#min').value.trim();if(!v)return;S.marks.push({label:v,dist:''});render();$('#min').focus()};
+    $('#addmk').onclick=addMk;$('#min').onkeydown=e=>{if(e.key==='Enter')addMk()};
+    a.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.marks.splice(+b.dataset.m,1);render()});
+    $('#go').onclick=()=>{S.phase='dist';render()};
+    return;
+  }
+  if(S.phase==='dist'){
+    a.innerHTML=`<h1>Distances</h1>
+    <p class="hint">Used to estimate each runner’s arrival and finish times. Optional — skip to just record splits.</p>
+    <label>Unit</label>
+    <div class="bar"><button class="tab ${S.unit==='mi'?'on':''}" data-u="mi">Miles</button><button class="tab ${S.unit==='km'?'on':''}" data-u="km">Kilometers</button></div>
+    <label>Total race distance (${S.unit})</label>
+    <input id="tot" type="number" step="any" min="0" inputmode="decimal" value="${esc(S.total)}" placeholder="e.g. 3.1">
+    <label style="margin-top:16px">Distance of each split point (${S.unit} from the start)</label>
+    ${mks().map((k,i)=>`<div class="add"><div class="lb">${esc(k.label)}</div><input class="sm" data-d="${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(k.dist)}" placeholder="${S.unit}"></div>`).join('')}
+    <div class="bar" style="margin-top:14px"><button class="s" id="back">← Back</button><button class="p" id="next">Continue</button></div>`;
+    a.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{S.unit=b.dataset.u;render()});
+    $('#tot').oninput=e=>{S.total=e.target.value};
+    a.querySelectorAll('[data-d]').forEach(i=>i.oninput=e=>{mks()[+i.dataset.d].dist=e.target.value});
+    $('#back').onclick=()=>{S.phase='setup';render()};$('#next').onclick=()=>{S.phase='ready';render()};
+    return;
+  }
+  if(S.phase==='ready'){
+    a.innerHTML=`<h1>Ready to race?</h1>
+    <p class="hint">Check the line-up and markers, then start the clock.</p>
+    <div class="card"><b>Predicted order</b><ol>${S.order.map(p=>`<li>${esc(p.name)}</li>`).join('')}</ol></div>
+    <div class="card"><b>Markers</b>${S.total!==''?`<div class="hint" style="margin:2px 0 0">Total ${esc(S.total)} ${S.unit}</div>`:''}<ol>${mks().map(k=>`<li>${esc(k.label)}${k.dist!==''?' · '+esc(k.dist)+' '+S.unit:''}</li>`).join('')}</ol></div>
+    <button class="p lap" id="start">Start race</button>
+    <button class="s" id="back" style="width:100%">← Back to edit</button>
+    <div class="bar" style="margin-top:12px"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>`;
+    $('#start').onclick=startRace;$('#back').onclick=()=>{S.phase='dist';render()};bindSync();
+    return;
+  }
+  const run=S.phase==='race',m=M(),n=m.actual.length,full=m.laps.length>=n;
+  let gp=null;
+  {const ps=S.order.map(p=>paceInfo(p.id)).filter(Boolean).map(i=>i.t/i.d);if(ps.length)gp=ps.reduce((x,y)=>x+y,0)/ps.length}
+  const D=+S.total||0,cd=+m.dist||0;
+  const estLine=id=>{
+    if(!run)return'';
+    const inf=paceInfo(id),pc=inf?inf.t/inf.d:gp;if(pc==null)return'';
+    const sy=inf?'~':'≈',parts=[];
+    if(cd>0&&timeAt(m,id)==null)parts.push('Arr '+sy+fmtE(pc*cd));
+    if(D>0)parts.push('Fin '+sy+fmtE(pc*D));
+    return parts.join(' · ');
+  };
+  a.innerHTML=`<h1>${run?'Race in progress':'Race finished'}</h1>
+  <div class="clock" id="clk">${fmt(now())}</div>
+  ${D>0?`<p class="hint" style="text-align:center;margin-top:-6px">Total distance ${esc(S.total)} ${S.unit}</p>`:''}
+  ${run?`<button class="p lap" id="lap" ${full?'disabled':''}>${full?'All splits taken here':'Take split · '+ord(m.laps.length)+' runner'}</button>
+  <div class="bar"><button class="s" id="edr">Edit runners</button><button class="s" id="stop">Finish race</button></div>
+  <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>`
+  :`<div class="bar"><button class="s" id="edr">Edit runners (add / remove)</button></div>
+  <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>
+  <div class="bar"><button class="s" id="again">New race (same names)</button><button class="s" id="reset">Start over</button></div>`}
+  <div class="tabs">${S.markers.map((k,i)=>`<button class="tab ${i===S.cur?'on':''}" data-t="${i}">${esc(k.label)} · ${k.laps.filter(x=>x!=null).length}/${S.order.length}</button>`).join('')}${run?'<button class="tab" id="addm">+ Marker</button>':''}</div>
+  <div class="add"><input id="lbl" value="${esc(m.label)}" placeholder="Marker name"><input class="sm" id="dst" type="number" step="any" min="0" inputmode="decimal" value="${esc(m.dist)}" placeholder="${S.unit}"></div>
+  ${run?'':'<p class="hint">Drag names to fix mix-ups. Tap a time to edit it. “Pred” is where you guessed they’d finish.</p>'}
+  <div class="grid"><div class="slots">${m.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${m.laps[i]!=null?`data-ti="${i}"`:''}>${m.laps[i]!=null?fmt(m.laps[i]):'—'}</span><small>${i>0&&m.laps[i]!=null&&m.laps[i-1]!=null?'+'+fmt(m.laps[i]-m.laps[i-1]):''}</small></div>`).join('')}</div>
+  <div class="list" id="act">${m.actual.map((id,i)=>{const p=byId(id),pi=S.pred.indexOf(String(id)),d=pi-i,el=estLine(id);
+    const badge=pi<0?'<span class="b eq">new</span>':d>0?`<span class="b up">▲${d}</span>`:d<0?`<span class="b dn">▼${-d}</span>`:`<span class="b eq">✓</span>`;
+    return `<div class="row" data-id="${id}"><span class="h">☰</span><span class="nm">${esc(p.name)}${el?`<small>${el}</small>`:''}</span>${run?'':`<span class="pd">${pi<0?'Added':'Pred '+(pi+1)}</span>`}${badge}</div>`}).join('')}</div></div>`;
+  sortable($('#act'),ids=>{m.actual=ids.map(Number);m.touched=true;render()});
+  a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const t=+b.dataset.t,k=S.markers[t];if(S.phase==='race'&&t>0&&!k.laps.length&&!k.touched)k.actual=[...S.markers[t-1].actual];S.cur=t;render()});
+  a.querySelectorAll('[data-ti]').forEach(b=>b.onclick=()=>{const i=+b.dataset.ti;S.modal={type:'time',i,t:fmt(m.laps[i])};render()});
+  $('#lbl').onchange=e=>{m.label=e.target.value.trim()||m.label;render()};
+  $('#dst').onchange=e=>{m.dist=e.target.value;render()};
+  $('#edr').onclick=()=>{S.draft=newDraft();S.modal={type:'runners'};render()};bindSync();
+  if(run){$('#lap').onclick=lap;$('#stop').onclick=finish;$('#addm').onclick=addMarker}
+  else{$('#again').onclick=()=>{S.phase='setup';render()};$('#reset').onclick=()=>{S.order=[];S.phase='setup';render()}}
+}
+
+function est(k){
+  const L=M().laps,a=L[k-1],b=L[k];let t=null;
+  if(a!=null&&b!=null)t=(a+b)/2;
+  else if(a!=null)t=a+((k>=2&&L[k-2]!=null)?a-L[k-2]:1000);
+  else if(b!=null)t=Math.max(0,b-1000);
+  return t==null?'':fmt(t);
+}
+const newDraft=()=>{const n=M().actual.length;return{name:'',pos:n,time:est(n)}};
+
+function renderModal(){
+  const el=$('#modal'),md=S.modal;
+  stopCam();if(!md){el.innerHTML='';return}
+  const m=M();
+  if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
+    el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit time</h2>
+    <p class="hint">${ord(md.i)} runner · ${esc(byId(m.actual[md.i]).name)}</p>
+    <input id="tt" value="${esc(md.t)}" inputmode="decimal">
+    <p class="hint" style="margin-top:6px">Use m:ss.cc or seconds (e.g. 1:05.30 or 65.3)</p>
+    <div class="bar"><button class="s" id="mc">Cancel</button><button class="p" id="ms">Save</button></div></div></div>`;
+    $('#mc').onclick=()=>{S.modal=null;render()};
+    $('#ms').onclick=()=>{const v=parse($('#tt').value);if(v==null){$('#tt').style.borderColor='var(--bad)';return}m.laps[md.i]=v;S.modal=null;render()};
+    return;
+  }
+  const done=S.phase==='done',n=m.actual.length,d=S.draft;
+  const nm=i=>esc(byId(m.actual[i]).name);
+  const ropts=v=>'<option value="">Choose…</option>'+S.order.map(p=>`<option value="${p.id}" ${String(p.id)===String(v)?'selected':''}>${esc(p.name)}</option>`).join('');
+  const opts=[...Array(n+1).keys()].map(k=>`<option value="${k}" ${k===d.pos?'selected':''}>${n===0?'First':k===0?'Before '+nm(0):k===n?'After '+nm(n-1):'Between '+nm(k-1)+' and '+nm(k)}</option>`).join('');
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit runners</h2>
+  <div>${S.order.map(p=>`<div class="rr"><input data-nm="${p.id}" value="${esc(p.name)}" autocomplete="off" aria-label="Runner name"><button class="x" data-rm="${p.id}" aria-label="Remove">×</button></div>`).join('')||'<p class="hint">No runners.</p>'}</div>
+  <p class="hint" style="margin-top:8px">Tap a name to fix its spelling. Removing a runner also removes their time at every marker.</p>
+  ${done&&S.order.length>1?`<div class="card" style="margin-top:12px"><b>Merge duplicate runners</b><p class="hint" style="margin:4px 0 0">If one person was entered twice with different spellings, pick the name to keep and the duplicate to merge into it. Their times are combined.</p><label>Keep this name</label><select id="mk">${ropts(d.keep)}</select><label>Duplicate to merge in</label><select id="md">${ropts(d.drop)}</select><button class="s" id="mg" style="width:100%;margin-top:10px">Merge runners</button></div>`:''}
+  <label>New runner</label><input id="nn" value="${esc(d.name)}" placeholder="Name" autocomplete="off">
+  ${done?`<label>Place in ${esc(m.label)}</label><select id="ps">${opts}</select>
+  <label>Time (estimated from neighbours — edit if you like)</label><input id="tt" value="${esc(d.time)}" placeholder="m:ss.cc (optional)" inputmode="decimal">`
+  :`<p class="hint" style="margin-top:8px">New runners join at the bottom of each marker; drag them into place.</p>`}
+  <div class="bar" style="margin-top:12px"><button class="s" id="mc">Close</button><button class="p" id="ma">Add runner</button></div></div></div>`;
+  $('#nn').oninput=e=>{d.name=e.target.value};
+  el.querySelectorAll('[data-nm]').forEach(i=>{i.onkeydown=e=>{if(e.key==='Enter')i.blur()};i.onchange=()=>{const v=i.value.trim(),p=byId(i.dataset.nm);if(!v){i.value=p.name;return}p.name=v;el.querySelectorAll(`option[value="${p.id}"]`).forEach(o=>{if(o.parentNode.id==='mk'||o.parentNode.id==='md')o.textContent=v});draw()}});
+  if(done&&S.order.length>1){$('#mk').onchange=e=>{d.keep=e.target.value};$('#md').onchange=e=>{d.drop=e.target.value};$('#mg').onclick=()=>{if(!d.keep||!d.drop||d.keep===d.drop)return;mergeRunners(+d.keep,+d.drop);S.draft=newDraft();render();setFlash('Runners merged')}}
+  if(done){$('#ps').onchange=e=>{d.pos=+e.target.value;d.time=est(d.pos);renderModal()};$('#tt').oninput=e=>{d.time=e.target.value}}
+  el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{removeRunner(+b.dataset.rm);render()});
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  $('#ma').onclick=()=>{const name=d.name.trim();if(!name)return;addRunner(name,d.pos,done?parse(d.time):null);S.draft=newDraft();render()};
+}
+
+function bindSync(){const s=$('#shr'),c=$('#scn');if(s){s.textContent='Export code';s.onclick=()=>{S.modal={type:'share'};render()}}if(c){c.textContent='Import code';c.onclick=()=>{S.modal={type:'scan'};render()}}}
+function flashUI(){let f=$('#flash');if(!f){f=document.createElement('div');f.id='flash';f.className='flash';document.body.appendChild(f)}f.textContent=S.flash;f.style.display=S.flash?'block':'none'}
+function setFlash(msg){S.flash=msg;flashUI();clearTimeout(setFlash.t);setFlash.t=setTimeout(()=>{S.flash='';flashUI()},3500)}
+function encodeState(){
+  const p={v:1,r:S.rid||'',e:S.epoch,f:Math.round(S.final),ph:S.phase,o:S.order.map(x=>[x.id,x.name]),pd:S.pred,u:S.unit,t:S.total,n:S.nid,ms:S.marks.map(k=>[k.label,k.dist]),df:S.def.dist,c:S.cur};
+  if(S.phase==='race'||S.phase==='done')p.mk=S.markers.map(k=>[k.label,k.dist,k.actual,k.laps.map(x=>x==null?null:Math.round(x)),k.touched?1:0]);
+  return 'RST1:'+JSON.stringify(p).replace(/[\u007f-\uffff]/g,c=>'\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
+}
+function importCode(txt){
+  let p;
+  try{txt=String(txt).trim();if(!txt.startsWith('RST1:'))return false;p=JSON.parse(txt.slice(5));if(!Array.isArray(p.o))return false}catch(e){return false}
+  const run=(p.ph==='race'||p.ph==='done')&&Array.isArray(p.mk);
+  const same=run&&p.r&&p.r===S.rid&&(S.phase==='race'||S.phase==='done');
+  if(same){
+    p.o.forEach(([id,name])=>{if(!byId(id))S.order.push({id,name})});
+    S.nid=Math.max(S.nid,p.n||0);
+    const cnt=l=>l.filter(x=>x!=null).length;
+    p.mk.forEach(([label,dist,actual,laps,touched],i)=>{
+      const L=S.markers[i];
+      if(!L)S.markers[i]={label,dist,actual,laps,touched:!!touched};
+      else fillMarker(L,actual,laps,dist)
+    });
+    setFlash('Filled in missing data from the pasted code');
+  }else{
+    cancelAnimationFrame(S.raf);
+    S.order=p.o.map(([id,name])=>({id,name}));S.pred=p.pd||[];S.unit=p.u||'mi';S.total=p.t||'';S.nid=p.n||S.nid;
+    S.marks=(p.ms||[]).map(([label,dist])=>({label,dist}));S.def={label:'Marker 1',dist:p.df||''};
+    S.rid=p.r||'';S.epoch=p.e||0;
+    if(run){S.markers=p.mk.map(([label,dist,actual,laps,touched])=>({label,dist,actual,laps,touched:!!touched}));S.cur=Math.min(p.c||0,S.markers.length-1)}
+    if(p.ph==='race'){S.phase='race';S.start=performance.now()-(Date.now()-p.e);tick()}
+    else if(p.ph==='done'&&run){S.phase='done';S.final=p.f}
+    else S.phase='ready';
+    setFlash(p.ph==='race'?'Joined race — clock synced':'Race loaded');
+  }
+  S.modal=null;render();return true;
+}
+function fillMarker(L,actual,laps,dist){
+  if(L.dist===''&&dist!=='')L.dist=dist;
+  const have=new Map();L.actual.forEach((id,i)=>{if(L.laps[i]!=null)have.set(id,L.laps[i])});
+  let add=0;
+  actual.forEach((id,i)=>{if(laps[i]!=null&&!have.has(id)){have.set(id,laps[i]);add++}});
+  actual.forEach(id=>{if(!L.actual.includes(id))L.actual.push(id)});
+  if(!add)return;
+  const timed=L.actual.filter(id=>have.has(id)).sort((x,y)=>have.get(x)-have.get(y));
+  const rest=L.actual.filter(id=>!have.has(id));
+  L.actual=[...timed,...rest];L.laps=timed.map(id=>have.get(id));
+}
+function copyText(t,msg){
+  const ok=()=>{msg.textContent='Copied ✓'};
+  const fb=()=>{try{const ta=$('#cd');ta.focus();ta.select();ta.setSelectionRange(0,1e7);if(document.execCommand('copy'))ok();else msg.textContent='Select the text and copy it manually.'}catch(e){msg.textContent='Select the text and copy it manually.'}};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb();
+}
+function drawQR(cv,code,msg){
+  try{
+    if(!window.QRCodeGen)throw 0;
+    const q=new QRCodeGen(0,1);q.addData(code);q.make();
+    const n=q.getModuleCount(),sc=Math.max(3,Math.floor(680/(n+8))),px=(n+8)*sc;
+    cv.width=cv.height=px;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,px,px);x.fillStyle='#000';
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect((c+4)*sc,(r+4)*sc,sc,sc);
+    msg.textContent='';
+  }catch(e){cv.style.display='none';msg.textContent='Too much data for one QR — copy the code below instead.'}
+}
+let CAM=null;
+function stopCam(){if(CAM){CAM.on=false;if(CAM.stream)CAM.stream.getTracks().forEach(t=>t.stop());CAM=null}}
+function shareModal(el){
+  const code=encodeState();
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Export</h2>
+  <p class="hint">On the other phone choose <b>Import code</b> and scan this QR, or copy the code below and paste it there. A new race loads exactly as it is now, including the running clock. If that phone already has this same race, it only fills in what it’s missing.</p>
+  <div style="text-align:center"><canvas id="qrc" style="width:100%;max-width:340px;border-radius:8px;background:#fff;image-rendering:pixelated"></canvas><p class="hint" id="qrm"></p></div>
+  <textarea id="cd" readonly style="width:100%;height:100px;font-size:12px">${esc(code)}</textarea>
+  <p class="hint" id="cm" style="margin-top:6px"></p>
+  <div class="bar"><button class="s" id="mc">Close</button><button class="s" id="rf">Refresh</button><button class="p" id="cp">Copy code</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};$('#rf').onclick=()=>renderModal();
+  $('#cp').onclick=()=>copyText(code,$('#cm'));
+  $('#cd').onclick=e=>e.target.select();
+  drawQR($('#qrc'),code,$('#qrm'));
+}
+function scanModal(el){
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Import code</h2>
+  <p class="hint">Scan the QR shown on another phone, or paste its code. A different race (or none on this phone) loads as a new race with the clock synced. The same race only fills in what’s missing — nothing you’ve recorded is overwritten.</p>
+  <button class="p" id="cam" style="width:100%">Scan QR with camera</button>
+  <video id="vid" playsinline muted style="display:none;width:100%;margin-top:10px;border-radius:10px;background:#000;max-height:46vh;object-fit:cover"></video>
+  <p class="hint" id="sm" style="margin-top:6px"></p>
+  <label>Or paste a code</label>
+  <textarea id="pc" placeholder="RST1:…" style="width:100%;height:90px;font-size:12px"></textarea>
+  <div class="bar" style="margin-top:10px"><button class="s" id="mc">Close</button><button class="s" id="pt">Paste</button><button class="p" id="pi">Import</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  $('#cam').onclick=startCam;
+  $('#pt').onclick=async()=>{try{const t=await navigator.clipboard.readText();$('#pc').value=t;$('#sm').textContent=t?'Pasted — tap Import.':'Clipboard is empty.'}catch(e){$('#sm').textContent='Paste isn’t allowed here — press and hold in the box and choose Paste.'}};
+  $('#pi').onclick=()=>{if(!importCode($('#pc').value))$('#sm').textContent='That doesn’t look like a valid code. Paste the whole thing, starting with RST1:'};
+}
+async function startCam(){
+  stopCam();const my=CAM={on:true,stream:null};
+  const v=$('#vid'),msg=$('#sm');
+  try{
+    const hasJ=typeof jsQR!=='undefined';
+    const det=(!hasJ&&'BarcodeDetector' in window)?new BarcodeDetector({formats:['qr_code']}):null;
+    if(!hasJ&&!det){msg.textContent='The QR reader (jsQR.js) isn’t in this copy yet — paste the code instead.';return}
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('cam');
+    msg.textContent='Starting camera…';
+    const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    if(!my.on){st.getTracks().forEach(t=>t.stop());return}
+    my.stream=st;v.srcObject=st;v.style.display='block';await v.play();msg.textContent='Looking for a QR code…';
+    const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+    const got=t=>t&&t.startsWith('RST1:')&&importCode(t);
+    const loop=async()=>{
+      if(!my.on)return;
+      try{
+        if(v.videoWidth){
+          if(det){const r=await det.detect(v);if(r.length&&got(r[0].rawValue))return}
+          else{const w=Math.min(640,v.videoWidth),h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cx.drawImage(v,0,0,w,h);
+            const r=jsQR(cx.getImageData(0,0,w,h).data,w,h,{inversionAttempts:'dontInvert'});if(r&&got(r.data))return}
+        }
+      }catch(e){}
+      setTimeout(loop,80);
+    };
+    loop();
+  }catch(e){if($('#sm'))$('#sm').textContent='Camera isn’t available — allow camera access in Settings, or paste the code instead.'}
+}
+function mergeRunners(a,b){
+  S.markers.forEach(L=>{
+    const ib=L.actual.indexOf(b);if(ib<0)return;
+    const ia=L.actual.indexOf(a);
+    const ta=ia>=0&&L.laps[ia]!=null?L.laps[ia]:null,tb=L.laps[ib]!=null?L.laps[ib]:null;
+    if(ia<0){L.actual[ib]=a;return}
+    if(ta==null&&tb!=null){
+      const have=new Map();L.actual.forEach((id,i)=>{if(L.laps[i]!=null)have.set(id,L.laps[i])});
+      have.delete(b);have.set(a,tb);
+      L.actual=L.actual.filter(id=>id!==b);
+      const timed=L.actual.filter(id=>have.has(id)).sort((x,y)=>have.get(x)-have.get(y));
+      const rest=L.actual.filter(id=>!have.has(id));
+      L.actual=[...timed,...rest];L.laps=timed.map(id=>have.get(id));
+    }else{L.actual.splice(ib,1);if(ib<L.laps.length)L.laps.splice(ib,1)}
+  });
+  const pa=S.pred.indexOf(String(a)),pb=S.pred.indexOf(String(b));
+  if(pb>=0){if(pa<0)S.pred[pb]=String(a);else S.pred.splice(pb,1)}
+  S.order=S.order.filter(p=>p.id!==b);
+}
+function addRunner(name,pos,t){
+  const id=S.nid++;S.order.push({id,name});
+  S.markers.forEach((k,mi)=>{
+    if(S.phase==='done'&&mi===S.cur){
+      const at=Math.min(pos,k.actual.length);
+      k.actual.splice(at,0,id);
+      while(k.laps.length<at)k.laps.push(null);
+      k.laps.splice(at,0,t);
+    }else k.actual.push(id);
+  });
+}
+function removeRunner(id){
+  S.order=S.order.filter(p=>p.id!==id);S.pred=S.pred.filter(x=>x!==String(id));
+  S.markers.forEach(k=>{const i=k.actual.indexOf(id);if(i<0)return;k.actual.splice(i,1);if(i<k.laps.length)k.laps.splice(i,1)});
+}
+function startRace(){
+  S.pred=S.order.map(p=>String(p.id));
+  S.markers=mks().map(k=>({label:k.label,dist:(!S.marks.length&&k.dist===''&&+S.total>0)?S.total:k.dist,actual:S.order.map(p=>p.id),laps:[]}));S.cur=0;
+  S.final=0;S.rid=Math.random().toString(36).slice(2,8);S.epoch=Date.now();S.phase='race';S.start=performance.now();render();tick();
+}
+function addMarker(){
+  S.markers.push({label:'Marker '+(S.markers.length+1),dist:'',actual:[...M().actual],laps:[]});
+  S.cur=S.markers.length-1;render();
+}
+function tick(){const c=$('#clk');if(c&&S.phase==='race')c.textContent=fmt(now());if(S.phase==='race')S.raf=requestAnimationFrame(tick)}
+function lap(){
+  if(S.phase!=='race')return;const m=M();
+  if(m.laps.length>=m.actual.length)return;
+  m.laps.push(performance.now()-S.start);render();
+}
+function finish(){
+  if(S.phase!=='race')return;
+  S.final=performance.now()-S.start;S.phase='done';cancelAnimationFrame(S.raf);render();
+}
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.phase==='race'&&!S.modal&&!['INPUT','SELECT','BUTTON'].includes(e.target.tagName)){e.preventDefault();lap()}});
+render();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script></body></html>
