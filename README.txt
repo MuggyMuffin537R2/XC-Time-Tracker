@@ -24,5 +24,14 @@ FILES (keep them all together in one folder)
    - Save it as jsQR.js in the same folder, then upload the folder again.
    Without it, Import still works by pasting the code.
 
-UPDATING: change sw.js's CACHE name (rst-v1 -> rst-v2) when you replace files
+UPDATING: change sw.js's CACHE name (currently rst-v2 -> rst-v3) when you replace files
 so phones pick up the new version.
+
+NEW IN THIS VERSION
+  - Races save automatically on the phone. Reopening the app restores the
+    current race (a running clock keeps counting while the app is closed).
+  - Finished races are kept under "Saved races" on the first screen
+    (up to 30). Open one to review it again or export it.
+  - "Export to Excel" after a race makes an .xlsx with bold names and sized
+    columns: one row per runner, one column of times per marker.
+    "Copy table" copies the same table to paste into Excel/Sheets.

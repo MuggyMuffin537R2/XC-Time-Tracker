@@ -107,13 +107,13 @@ function sortable(el,done){
   });
 }
 
-function render(){draw();renderModal();flashUI()}
+function render(){draw();renderModal();flashUI();saveState()}
 
 function draw(){
   const a=$('#app');
   if(S.phase==='setup'){
     a.innerHTML=`<h1>Race Split Taker</h1>
-    <button class="s" id="scn" style="width:100%;margin-bottom:12px">Import code</button>
+    <div class="bar"><button class="s" id="scn">Import code</button><button class="s" id="hst">Saved races</button></div>
     <div class="add"><input id="in" placeholder="Add a name" autocomplete="off"><button class="p" id="addb">Add</button></div>
     <p class="hint">Drag ☰ to set your predicted finish order (top = first).</p>
     <div class="list" id="lst">${S.order.map(p=>`<div class="row" data-id="${p.id}"><span class="h">☰</span><span class="nm">${esc(p.name)}</span><button class="x" data-x="${p.id}">×</button></div>`).join('')}</div>
@@ -123,7 +123,7 @@ function draw(){
     <div class="tabs" style="flex-wrap:wrap">${S.marks.map((k,i)=>`<button class="tab" data-m="${i}">${i+1}. ${esc(k.label)} ×</button>`).join('')}</div>
     <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>`;
     const add=()=>{const v=$('#in').value.trim();if(!v)return;S.order.push({id:S.nid++,name:v});render();$('#in').focus()};
-    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();
+    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};
     a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.order=S.order.filter(p=>p.id!=b.dataset.x);render()});
     sortable($('#lst'),ids=>{S.order=ids.map(byId);render()});
     const addMk=()=>{const v=$('#min').value.trim();if(!v)return;S.marks.push({label:v,dist:''});render();$('#min').focus()};
@@ -178,6 +178,7 @@ function draw(){
   <div class="bar"><button class="s" id="edr">Edit runners</button><button class="s" id="stop">Finish race</button></div>
   <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>`
   :`<div class="bar"><button class="s" id="edr">Edit runners (add / remove)</button></div>
+  <div class="bar"><button class="p" id="xl">Export to Excel</button><button class="s" id="cpt">Copy table</button></div>
   <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>
   <div class="bar"><button class="s" id="again">New race (same names)</button><button class="s" id="reset">Start over</button></div>`}
   <div class="tabs">${S.markers.map((k,i)=>`<button class="tab ${i===S.cur?'on':''}" data-t="${i}">${esc(k.label)} · ${k.laps.filter(x=>x!=null).length}/${S.order.length}</button>`).join('')}${run?'<button class="tab" id="addm">+ Marker</button>':''}</div>
@@ -193,6 +194,7 @@ function draw(){
   $('#lbl').onchange=e=>{m.label=e.target.value.trim()||m.label;render()};
   $('#dst').onchange=e=>{m.dist=e.target.value;render()};
   $('#edr').onclick=()=>{S.draft=newDraft();S.modal={type:'runners'};render()};bindSync();
+  if($('#xl')){$('#xl').onclick=()=>exportXlsx(S);$('#cpt').onclick=()=>copyTable(S)}
   if(run){$('#lap').onclick=lap;$('#stop').onclick=finish;$('#addm').onclick=addMarker}
   else{$('#again').onclick=()=>{S.phase='setup';render()};$('#reset').onclick=()=>{S.order=[];S.phase='setup';render()}}
 }
@@ -210,7 +212,7 @@ function renderModal(){
   const el=$('#modal'),md=S.modal;
   stopCam();if(!md){el.innerHTML='';return}
   const m=M();
-  if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
+  if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
     el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit time</h2>
     <p class="hint">${ord(md.i)} runner · ${esc(byId(m.actual[md.i]).name)}</p>
     <input id="tt" value="${esc(md.t)}" inputmode="decimal">
@@ -361,6 +363,107 @@ async function startCam(){
     loop();
   }catch(e){if($('#sm'))$('#sm').textContent='Camera isn’t available — allow camera access in Settings, or paste the code instead.'}
 }
+/*XLSX-START*/
+const crcT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=crcT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zipFiles(files){
+  const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+  const u16=n=>[n&255,(n>>8)&255],u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>>24)&255];
+  files.forEach(f=>{
+    const nm=enc.encode(f.name),data=enc.encode(f.text),crc=crc32(data),sz=data.length;
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,data);
+    cen.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nm);
+    off+=lh.length+nm.length+sz;
+  });
+  const cdSize=cen.reduce((a,b)=>a+b.length,0);
+  const end=new Uint8Array([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cdSize),...u32(off),...u16(0)]);
+  const all=[...parts,...cen,end],out=new Uint8Array(all.reduce((a,b)=>a+b.length,0));
+  let p=0;all.forEach(b=>{out.set(b,p);p+=b.length});return out;
+}
+function xlsxTable(d){
+  const mk=d.markers||[],byid=id=>d.order.find(p=>p.id==id);
+  const tm=(L,id)=>{const i=L.actual.indexOf(id);return i>=0&&L.laps[i]!=null?L.laps[i]:null};
+  let last=-1;mk.forEach((L,j)=>{if(L.laps.some(x=>x!=null))last=j});
+  const base=last>=0?mk[last].actual.slice():[];
+  d.order.forEach(p=>{if(!base.includes(p.id))base.push(p.id)});
+  const heads=['Name',...mk.map(L=>L.label+(L.dist!==''?' ('+L.dist+' '+d.unit+')':''))];
+  const rows=base.filter(id=>byid(id)).map(id=>[byid(id).name,...mk.map(L=>tm(L,id))]);
+  return{heads,rows};
+}
+function xlsxBytes(d){
+  const {heads,rows}=xlsxTable(d);
+  const X=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const col=i=>{let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s};
+  const wid=heads.map((h,i)=>i?Math.max(12,h.length+3):Math.max(12,h.length,...rows.map(r=>String(r[0]).length))+4);
+  const cs=(r,c,v,st)=>`<c r="${col(c)}${r}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${X(v)}</t></is></c>`;
+  let sd=`<row r="1">${heads.map((h,c)=>cs(1,c,h,1)).join('')}</row>`;
+  rows.forEach((r,i)=>{sd+=`<row r="${i+2}">`+r.map((v,c)=>c===0?cs(i+2,c,v,1):v==null?'':`<c r="${col(c)}${i+2}" s="2"><v>${v/86400000}</v></c>`).join('')+'</row>'});
+  const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n',NS='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',RN='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  return zipFiles([
+   {name:'[Content_Types].xml',text:H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'},
+   {name:'_rels/.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+RN+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+   {name:'xl/workbook.xml',text:H+'<workbook '+NS+' xmlns:r="'+RN+'"><sheets><sheet name="Results" sheetId="1" r:id="rId1"/></sheets></workbook>'},
+   {name:'xl/_rels/workbook.xml.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+RN+'/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="'+RN+'/styles" Target="styles.xml"/></Relationships>'},
+   {name:'xl/styles.xml',text:H+'<styleSheet '+NS+'><numFmts count="1"><numFmt numFmtId="164" formatCode="[m]:ss.00"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'},
+   {name:'xl/worksheets/sheet1.xml',text:H+'<worksheet '+NS+'><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+wid.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols><sheetData>'+sd+'</sheetData></worksheet>'}
+  ]);
+}
+/*XLSX-END*/
+async function saveBlob(blob,name){
+  const file=new File([blob],name,{type:blob.type});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return 'shared'}}catch(e){if(e&&e.name==='AbortError')return 'cancel'}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},2000);return 'download';
+}
+function exportXlsx(d){
+  const blob=new Blob([xlsxBytes(d)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const day=new Date(d.epoch||d.saved||Date.now()).toISOString().slice(0,10);
+  saveBlob(blob,'race-results-'+day+'.xlsx').then(r=>{if(r==='download')setFlash('Excel file downloaded')});
+}
+function copyTable(d){
+  const {heads,rows}=xlsxTable(d);
+  const t=[heads.join('\t'),...rows.map(r=>r.map((v,i)=>i===0?v:v==null?'':fmt(v)).join('\t'))].join('\n');
+  const ok=()=>setFlash('Table copied — paste into Excel'),bad=()=>setFlash('Copy was blocked on this device');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,bad);else bad();
+}
+const getHist=()=>{try{return JSON.parse(localStorage.getItem('rst-history-v1')||'[]')}catch(e){return[]}};
+const histTitle=e=>new Date(e.epoch||e.saved).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' · '+e.order.length+' runners';
+const snapOf=()=>({phase:S.phase,order:S.order,pred:S.pred,marks:S.marks,def:S.def,total:S.total,unit:S.unit,markers:S.markers,cur:S.cur,final:S.final,nid:S.nid,rid:S.rid,epoch:S.epoch,saved:Date.now()});
+function saveState(){
+  try{
+    localStorage.setItem('rst-save-v1',JSON.stringify(snapOf()));
+    if(S.phase==='done'&&S.rid){
+      const h=getHist(),e=snapOf(),i=h.findIndex(x=>x.rid===S.rid);
+      if(i>=0)h[i]=e;else h.unshift(e);
+      localStorage.setItem('rst-history-v1',JSON.stringify(h.slice(0,30)));
+    }
+  }catch(e){}
+}
+function loadSnap(o){
+  cancelAnimationFrame(S.raf);
+  Object.assign(S,{phase:o.phase,order:o.order||[],pred:o.pred||[],marks:o.marks||[],def:o.def||{label:'Marker 1',dist:''},total:o.total||'',unit:o.unit||'mi',markers:o.markers||[],cur:Math.min(o.cur||0,Math.max(0,(o.markers||[]).length-1)),final:o.final||0,nid:o.nid||1,rid:o.rid||'',epoch:o.epoch||0,modal:null});
+  if(S.phase==='race')S.start=performance.now()-(Date.now()-S.epoch);
+}
+function restore(){
+  let o=null;try{o=JSON.parse(localStorage.getItem('rst-save-v1')||'null')}catch(e){}
+  if(!o||!o.phase)return;
+  loadSnap(o);render();
+  if(S.phase==='race'){tick();setFlash('Race restored — clock kept running')}
+}
+function histModal(el){
+  const h=getHist();
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Saved races</h2>
+  ${h.length?h.map((e,i)=>`<div class="card"><b>${esc(histTitle(e))}</b><div class="hint" style="margin:2px 0 8px">${e.markers.length} marker${e.markers.length===1?'':'s'}</div><div class="bar" style="margin-bottom:0"><button class="s" data-o="${i}">Open</button><button class="s" data-x="${i}">Excel</button><button class="s" data-d="${i}">Delete</button></div></div>`).join(''):'<p class="hint">No saved races yet. Finished races are saved here automatically.</p>'}
+  <div class="bar" style="margin-top:12px"><button class="s" id="mc">Close</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  el.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{loadSnap(h[+b.dataset.o]);render()});
+  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>exportXlsx(h[+b.dataset.x]));
+  el.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='Tap again';return}
+    h.splice(+b.dataset.d,1);try{localStorage.setItem('rst-history-v1',JSON.stringify(h))}catch(e){}renderModal();
+  });
+}
 function mergeRunners(a,b){
   S.markers.forEach(L=>{
     const ib=L.actual.indexOf(b);if(ib<0)return;
@@ -416,5 +519,6 @@ function finish(){
 }
 document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.phase==='race'&&!S.modal&&!['INPUT','SELECT','BUTTON'].includes(e.target.tagName)){e.preventDefault();lap()}});
 render();
+try{restore()}catch(e){}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script></body></html>
