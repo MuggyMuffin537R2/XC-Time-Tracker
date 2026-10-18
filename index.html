@@ -74,7 +74,7 @@ summary{cursor:pointer;margin:8px 0}
 <script src="jsQR.js"></script>
 <script>
 const $=s=>document.querySelector(s);
-let S={phase:'setup',order:[],pred:[],marks:[],def:{label:'Marker 1',dist:''},total:'',unit:'mi',markers:[],cur:0,start:0,final:0,raf:0,nid:1,rid:'',epoch:0,flash:'',invRid:'',hinv:null,hsel:[],hm:[],hc:0,modal:null,draft:null};
+let S={phase:'setup',order:[],pred:[],marks:[],def:{label:'Marker 1',dist:''},total:'',unit:'mi',markers:[],cur:0,start:0,final:0,raf:0,nid:1,rid:'',epoch:0,flash:'',invRid:'',munit:'mi',tdraft:'',hinv:null,hsel:[],hm:[],hc:0,modal:null,draft:null};
 const M=()=>S.markers[S.cur];
 const mks=()=>S.marks.length?S.marks:[S.def];
 const fmt=ms=>{const t=Math.floor(ms/10),c=t%100,s=Math.floor(t/100)%60,m=Math.floor(t/6000);return m+':'+String(s).padStart(2,'0')+'.'+String(c).padStart(2,'0')};
@@ -85,7 +85,11 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 const byId=id=>S.order.find(p=>p.id==id);
 const ord=i=>(i+1)+(['st','nd','rd'][i]||'th');
 const timeAt=(mk,id)=>{const i=mk.actual.indexOf(id);return i>=0&&mk.laps[i]!=null?mk.laps[i]:null};
-function paceInfo(id){for(let j=S.markers.length-1;j>=0;j--){const mk=S.markers[j],d=+mk.dist;if(!(d>0))continue;const t=timeAt(mk,id);if(t!=null&&t>0)return{t,d}}return null}
+const KMF=u=>u==='mi'?1.609344:1;
+const distKm=k=>(+k.dist>0?+k.dist:0)*KMF(k.unit||S.unit);
+const totKm=()=>(+S.total>0?+S.total:0)*KMF(S.unit);
+const relabel=(k,i)=>{const d=String(k.dist).trim();k.label=d!==''?(+d>0?String(+d):d)+' '+(k.unit||S.unit):'Marker '+(i+1)};
+function paceInfo(id){for(let j=S.markers.length-1;j>=0;j--){const mk=S.markers[j],d=distKm(mk);if(!(d>0))continue;const t=timeAt(mk,id);if(t!=null&&t>0)return{t,d}}return null}
 
 function sortable(el,done){
   el.querySelectorAll('.h').forEach(h=>{
@@ -121,37 +125,35 @@ function draw(){
     a.innerHTML=`<h1>Race Split Taker</h1>
     ${modeSeg('org')}
     <div class="bar"><button class="s" id="scn">Import code</button><button class="s" id="hst">Saved races</button></div>
+    <div class="bar"><button class="s" id="tms">Team presets</button></div>
     <div class="add"><input id="in" placeholder="Add a name" autocomplete="off"><button class="p" id="addb">Add</button></div>
     <p class="hint">Drag ☰ to set your predicted finish order (top = first).</p>
     <div class="list" id="lst">${S.order.map(p=>`<div class="row" data-id="${p.id}"><span class="h">☰</span><span class="nm">${esc(p.name)}</span><button class="x" data-x="${p.id}">×</button></div>`).join('')}</div>
     <h1 style="font-size:16px;margin-top:18px">Markers</h1>
-    <p class="hint">Add the points you’ll take splits at (e.g. Mile 1, Mile 2, Finish). Leave empty for one marker; you can add more during the race.</p>
-    <div class="add"><input id="min" placeholder="Marker name" autocomplete="off"><button class="s" id="addmk">Add</button></div>
+    <p class="hint">Add each point where you’ll take splits by its distance. Markers are named automatically, and each can use miles or kilometers, so you can mix them.</p>
+    <div class="add"><input id="mdist" type="number" step="any" min="0" inputmode="decimal" placeholder="Distance"><select id="munit" class="sm"><option value="mi" ${S.munit!=='km'?'selected':''}>mi</option><option value="km" ${S.munit==='km'?'selected':''}>km</option></select><button class="s" id="addmk">Add</button></div>
     <div class="tabs" style="flex-wrap:wrap">${S.marks.map((k,i)=>`<button class="tab" data-m="${i}">${i+1}. ${esc(k.label)} ×</button>`).join('')}</div>
     <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>`;
     const add=()=>{const v=$('#in').value.trim();if(!v)return;S.order.push({id:S.nid++,name:v});render();$('#in').focus()};
-    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};bindSeg();
+    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};$('#tms').onclick=()=>{S.modal={type:'teams'};render()};bindSeg();
     a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.order=S.order.filter(p=>p.id!=b.dataset.x);render()});
     sortable($('#lst'),ids=>{S.order=ids.map(byId);render()});
-    const addMk=()=>{const v=$('#min').value.trim();if(!v)return;S.marks.push({label:v,dist:''});render();$('#min').focus()};
-    $('#addmk').onclick=addMk;$('#min').onkeydown=e=>{if(e.key==='Enter')addMk()};
+    const addMk=()=>{const v=$('#mdist').value.trim();if(!(+v>0))return;const k={dist:v,unit:$('#munit').value};relabel(k,0);S.munit=k.unit;S.marks.push(k);S.marks.sort((x,y)=>distKm(x)-distKm(y));render();$('#mdist').focus()};
+    $('#addmk').onclick=addMk;$('#mdist').onkeydown=e=>{if(e.key==='Enter')addMk()};$('#munit').onchange=e=>{S.munit=e.target.value};
     a.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.marks.splice(+b.dataset.m,1);render()});
     $('#go').onclick=()=>{S.phase='dist';render()};
     return;
   }
   if(S.phase==='dist'){
-    a.innerHTML=`<h1>Distances</h1>
-    <p class="hint">Used to estimate each runner’s arrival and finish times. Optional — skip to just record splits.</p>
+    a.innerHTML=`<h1>Total distance</h1>
+    <p class="hint">Optional. Used with your markers to estimate each runner’s finish time. Skip it to just record splits.</p>
     <label>Unit</label>
     <div class="bar"><button class="tab ${S.unit==='mi'?'on':''}" data-u="mi">Miles</button><button class="tab ${S.unit==='km'?'on':''}" data-u="km">Kilometers</button></div>
     <label>Total race distance (${S.unit})</label>
     <input id="tot" type="number" step="any" min="0" inputmode="decimal" value="${esc(S.total)}" placeholder="e.g. 3.1">
-    <label style="margin-top:16px">Distance of each split point (${S.unit} from the start)</label>
-    ${mks().map((k,i)=>`<div class="add"><div class="lb">${esc(k.label)}</div><input class="sm" data-d="${i}" type="number" step="any" min="0" inputmode="decimal" value="${esc(k.dist)}" placeholder="${S.unit}"></div>`).join('')}
     <div class="bar" style="margin-top:14px"><button class="s" id="back">← Back</button><button class="p" id="next">Continue</button></div>`;
     a.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{S.unit=b.dataset.u;render()});
     $('#tot').oninput=e=>{S.total=e.target.value};
-    a.querySelectorAll('[data-d]').forEach(i=>i.oninput=e=>{mks()[+i.dataset.d].dist=e.target.value});
     $('#back').onclick=()=>{S.phase='setup';render()};$('#next').onclick=()=>{S.phase='ready';render()};
     return;
   }
@@ -159,7 +161,7 @@ function draw(){
     a.innerHTML=`<h1>Ready to race?</h1>
     <p class="hint">Check the line-up and markers, then start the clock.</p>
     <div class="card"><b>Predicted order</b><ol>${S.order.map(p=>`<li>${esc(p.name)}</li>`).join('')}</ol></div>
-    <div class="card"><b>Markers</b>${S.total!==''?`<div class="hint" style="margin:2px 0 0">Total ${esc(S.total)} ${S.unit}</div>`:''}<ol>${mks().map(k=>`<li>${esc(k.label)}${k.dist!==''?' · '+esc(k.dist)+' '+S.unit:''}</li>`).join('')}</ol></div>
+    <div class="card"><b>Markers</b>${S.total!==''?`<div class="hint" style="margin:2px 0 0">Total ${esc(S.total)} ${S.unit}</div>`:''}<ol>${mks().map(k=>`<li>${esc(k===S.def&&+S.total>0?S.total+' '+S.unit:k.label)}</li>`).join('')}</ol></div>
     <button class="p lap" id="start">Start race</button>
     <button class="s" id="back" style="width:100%">← Back to edit</button>
     <div class="bar" style="margin-top:12px"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>`;
@@ -169,7 +171,7 @@ function draw(){
   const run=S.phase==='race',m=M(),n=m.actual.length,full=m.laps.length>=n;
   let gp=null;
   {const ps=S.order.map(p=>paceInfo(p.id)).filter(Boolean).map(i=>i.t/i.d);if(ps.length)gp=ps.reduce((x,y)=>x+y,0)/ps.length}
-  const D=+S.total||0,cd=+m.dist||0;
+  const D=totKm(),cd=distKm(m);
   const estLine=id=>{
     if(!run)return'';
     const inf=paceInfo(id),pc=inf?inf.t/inf.d:gp;if(pc==null)return'';
@@ -189,8 +191,8 @@ function draw(){
   <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>
   <div class="bar"><button class="s" id="again">New race (same names)</button><button class="s" id="reset">Start over</button></div>`}
   <div class="tabs">${S.markers.map((k,i)=>`<button class="tab ${i===S.cur?'on':''}" data-t="${i}">${esc(k.label)} · ${k.laps.filter(x=>x!=null).length}/${S.order.length}</button>`).join('')}${run?'<button class="tab" id="addm">+ Marker</button>':''}</div>
-  <div class="add"><input id="lbl" value="${esc(m.label)}" placeholder="Marker name"><input class="sm" id="dst" type="number" step="any" min="0" inputmode="decimal" value="${esc(m.dist)}" placeholder="${S.unit}"></div>
-  ${run?'':'<p class="hint">Drag names to fix mix-ups. Tap a time to edit it. “Pred” is where you guessed they’d finish.</p>'}
+  <div class="add"><input id="dst" type="number" step="any" min="0" inputmode="decimal" value="${esc(m.dist)}" placeholder="Distance of this marker"><select id="unt" class="sm"><option value="mi" ${(m.unit||S.unit)==='mi'?'selected':''}>mi</option><option value="km" ${(m.unit||S.unit)==='km'?'selected':''}>km</option></select></div>
+  ${run?'':'<p class="hint">Drag names to fix mix-ups. Tap a time to edit it.</p>'}
   <div class="grid"><div class="slots">${m.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${m.laps[i]!=null?`data-ti="${i}"`:''}>${m.laps[i]!=null?fmt(m.laps[i]):'—'}</span><small>${i>0&&m.laps[i]!=null&&m.laps[i-1]!=null?'+'+fmt(m.laps[i]-m.laps[i-1]):''}</small></div>`).join('')}</div>
   <div class="list" id="act">${m.actual.map((id,i)=>{const p=byId(id),pi=S.pred.indexOf(String(id)),d=pi-i,el=estLine(id);
     const badge=pi<0?'<span class="b eq">new</span>':d>0?`<span class="b up">▲${d}</span>`:d<0?`<span class="b dn">▼${-d}</span>`:`<span class="b eq">✓</span>`;
@@ -198,8 +200,8 @@ function draw(){
   sortable($('#act'),ids=>{m.actual=ids.map(Number);m.touched=true;render()});
   a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const t=+b.dataset.t,k=S.markers[t];if(S.phase==='race'&&t>0&&!k.laps.length&&!k.touched)k.actual=[...S.markers[t-1].actual];S.cur=t;render()});
   a.querySelectorAll('[data-ti]').forEach(b=>b.onclick=()=>{const i=+b.dataset.ti;S.modal={type:'time',i,t:fmt(m.laps[i])};render()});
-  $('#lbl').onchange=e=>{m.label=e.target.value.trim()||m.label;render()};
-  $('#dst').onchange=e=>{m.dist=e.target.value;render()};
+  $('#unt').onchange=e=>{m.unit=e.target.value;relabel(m,S.cur);render()};
+  $('#dst').onchange=e=>{m.dist=e.target.value;relabel(m,S.cur);render()};
   $('#edr').onclick=()=>{S.draft=newDraft();S.modal={type:'runners'};render()};bindSync();
   if($('#xl')){$('#xl').onclick=()=>exportXlsx(S);$('#cpt').onclick=()=>copyTable(S)}
   if(run){$('#lap').onclick=lap;$('#stop').onclick=finish;$('#addm').onclick=addMarker}
@@ -219,7 +221,7 @@ function renderModal(){
   const el=$('#modal'),md=S.modal;
   stopCam();if(!md){el.innerHTML='';return}
   const m=M();
-  if(md.type==='resume')return resumeModal(el);if(md.type==='invite')return inviteModal(el);if(md.type==='hres')return hresModal(el);if(md.type==='hdel')return hdelModal(el);if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
+  if(md.type==='resume')return resumeModal(el);if(md.type==='teams')return teamsModal(el);if(md.type==='invite')return inviteModal(el);if(md.type==='hres')return hresModal(el);if(md.type==='hdel')return hdelModal(el);if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
     el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit time</h2>
     <p class="hint">${ord(md.i)} runner · ${esc(byId(m.actual[md.i]).name)}</p>
     <input id="tt" value="${esc(md.t)}" inputmode="decimal">
@@ -263,8 +265,8 @@ function bindSync(){
 function flashUI(){let f=$('#flash');if(!f){f=document.createElement('div');f.id='flash';f.className='flash';document.body.appendChild(f)}f.textContent=S.flash;f.style.display=S.flash?'block':'none'}
 function setFlash(msg){S.flash=msg;flashUI();clearTimeout(setFlash.t);setFlash.t=setTimeout(()=>{S.flash='';flashUI()},3500)}
 function encodeState(){
-  const p={v:1,r:S.rid||'',e:S.epoch,f:Math.round(S.final),ph:S.phase,o:S.order.map(x=>[x.id,x.name]),pd:S.pred,u:S.unit,t:S.total,n:S.nid,ms:S.marks.map(k=>[k.label,k.dist]),df:S.def.dist,c:S.cur};
-  if(S.phase==='race'||S.phase==='done')p.mk=S.markers.map(k=>[k.label,k.dist,k.actual,k.laps.map(x=>x==null?null:Math.round(x)),k.touched?1:0]);
+  const p={v:1,r:S.rid||'',e:S.epoch,f:Math.round(S.final),ph:S.phase,o:S.order.map(x=>[x.id,x.name]),pd:S.pred,u:S.unit,t:S.total,n:S.nid,ms:S.marks.map(k=>[k.label,k.dist,k.unit||S.unit]),df:S.def.dist,c:S.cur};
+  if(S.phase==='race'||S.phase==='done')p.mk=S.markers.map(k=>[k.label,k.dist,k.actual,k.laps.map(x=>x==null?null:Math.round(x)),k.touched?1:0,k.unit||S.unit]);
   return 'RST1:'+JSON.stringify(p).replace(/[\u007f-\uffff]/g,c=>'\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
 }
 function importCode(txt,scanAt){
@@ -276,18 +278,18 @@ function importCode(txt,scanAt){
     p.o.forEach(([id,name])=>{if(!byId(id))S.order.push({id,name})});
     S.nid=Math.max(S.nid,p.n||0);
     const cnt=l=>l.filter(x=>x!=null).length;
-    p.mk.forEach(([label,dist,actual,laps,touched],i)=>{
+    p.mk.forEach(([label,dist,actual,laps,touched,unit],i)=>{
       const L=S.markers[i];
-      if(!L)S.markers[i]={label,dist,actual,laps,touched:!!touched};
+      if(!L)S.markers[i]={label,dist,unit:unit||S.unit,actual,laps,touched:!!touched};
       else fillMarker(L,actual,laps,dist)
     });
     setFlash('Filled in missing data from the pasted code');
   }else{
     cancelAnimationFrame(S.raf);
     S.order=p.o.map(([id,name])=>({id,name}));S.pred=p.pd||[];S.unit=p.u||'mi';S.total=p.t||'';S.nid=p.n||S.nid;
-    S.marks=(p.ms||[]).map(([label,dist])=>({label,dist}));S.def={label:'Marker 1',dist:p.df||''};
+    S.marks=(p.ms||[]).map(([label,dist,unit])=>({label,dist,unit:unit||S.unit}));S.def={label:'Marker 1',dist:p.df||''};
     S.rid=p.r||'';S.epoch=p.e||0;
-    if(run){S.markers=p.mk.map(([label,dist,actual,laps,touched])=>({label,dist,actual,laps,touched:!!touched}));S.cur=Math.min(p.c||0,S.markers.length-1)}
+    if(run){S.markers=p.mk.map(([label,dist,actual,laps,touched,unit])=>({label,dist,unit:unit||S.unit,actual,laps,touched:!!touched}));S.cur=Math.min(p.c||0,S.markers.length-1)}
     if(p.ph==='race'){S.phase='race';S.start=performance.now()-(Date.now()-p.e);tick()}
     else if(p.ph==='done'&&run){S.phase='done';S.final=p.f}
     else S.phase='ready';
@@ -402,7 +404,7 @@ function xlsxTable(d){
   let last=-1;mk.forEach((L,j)=>{if(L.laps.some(x=>x!=null))last=j});
   const base=last>=0?mk[last].actual.slice():[];
   d.order.forEach(p=>{if(!base.includes(p.id))base.push(p.id)});
-  const heads=['Name',...mk.map(L=>L.label+(L.dist!==''?' ('+L.dist+' '+d.unit+')':''))];
+  const heads=['Name',...mk.map(L=>L.label)];
   const rows=base.filter(id=>byid(id)).map(id=>[byid(id).name,...mk.map(L=>tm(L,id))]);
   return{heads,rows};
 }
@@ -496,6 +498,32 @@ function histModal(el){
     h.splice(+b.dataset.d,1);try{localStorage.setItem('rst-history-v1',JSON.stringify(h))}catch(e){}renderModal();
   });
 }
+const getTeams=()=>{try{return JSON.parse(localStorage.getItem('rst-teams-v1')||'[]')}catch(e){return[]}};
+const setTeams=t=>{try{localStorage.setItem('rst-teams-v1',JSON.stringify(t))}catch(e){}};
+function teamsModal(el){
+  const t=getTeams();
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Team presets</h2>
+  ${t.length?t.map((x,i)=>`<div class="card"><b>${esc(x.name)}</b><div class="hint" style="margin:2px 0 8px">${x.names.length} runner${x.names.length===1?'':'s'}: ${esc(x.names.slice(0,4).join(', '))}${x.names.length>4?'…':''}</div><div class="bar" style="margin-bottom:0"><button class="s" data-l="${i}">Load</button><button class="s" data-d="${i}">Delete</button></div></div>`).join(''):'<p class="hint">No saved teams yet.</p>'}
+  <label>Save the current names as a team</label>
+  <div class="add"><input id="tn" placeholder="Team name" value="${esc(S.tdraft)}" autocomplete="off"><button class="p" id="ts" ${S.order.length?'':'disabled'}>Save</button></div>
+  <p class="hint">${S.order.length?'Saves the names in their current order. ':'Add names on the first screen, then come back to save them. '}Loading a team replaces the current names — then drag them into your predicted order.</p>
+  <div class="bar"><button class="s" id="mc">Close</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  $('#tn').oninput=e=>{S.tdraft=e.target.value};
+  $('#ts').onclick=()=>{
+    const name=S.tdraft.trim();if(!name||!S.order.length)return;
+    const all=getTeams(),i=all.findIndex(x=>x.name.toLowerCase()===name.toLowerCase()),rec={name,names:S.order.map(p=>p.name)};
+    if(i>=0)all[i]=rec;else all.push(rec);
+    setTeams(all);S.tdraft='';renderModal();setFlash('Team saved');
+  };
+  el.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{
+    const x=t[+b.dataset.l];S.order=x.names.map(n=>({id:S.nid++,name:n}));S.modal=null;render();setFlash('Team loaded — drag names into your predicted order');
+  });
+  el.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{
+    if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='Tap again';return}
+    t.splice(+b.dataset.d,1);setTeams(t);renderModal();
+  });
+}
 /*HELPER-START*/
 let LIVE=0;
 function stopLive(){if(LIVE){clearInterval(LIVE);LIVE=0}}
@@ -508,7 +536,7 @@ function bindSeg(){document.querySelectorAll('#app [data-md]').forEach(b=>b.oncl
 function invCode(){
   const live=S.phase==='race'||S.phase==='done';
   const r=live?S.rid:(S.invRid||(S.invRid=Math.random().toString(36).slice(2,8)));
-  const ms=live?S.markers.map(k=>[k.label,k.dist]):mks().map(k=>[k.label,k.dist]);
+  const ms=live?S.markers.map(k=>[k.label,k.dist]):mks().map(k=>[k===S.def&&+S.total>0?S.total+' '+S.unit:k.label,k.dist]);
   return jc({k:'inv',v:1,r,o:S.order.map(x=>[x.id,x.name]),mk:ms,u:S.unit,t:Date.now()});
 }
 function resCode(){
@@ -547,11 +575,11 @@ function liveModal(el,title,text,codeFn){
   $('#cp').onclick=()=>copyText($('#cd').value,$('#cm'));
   startLive(()=>{const c=$('#qrc');if(c)drawQR(c,codeFn(),$('#qrm'))},400);
 }
-function inviteModal(el){liveModal(el,'Invite helpers','Helpers open the app, choose the <b>Helper</b> tab, and scan this QR. The code changes every second — that’s how their phone matches your clock. Hold still while they scan. Finish names and markers first.',invCode)}
+function inviteModal(el){liveModal(el,'Invite helpers','Helpers open the app, choose the <b>Helper</b> tab, and scan this QR. Finish names and markers before inviting helpers.',invCode)}
 function hresModal(el){liveModal(el,'Send to organizer','On the organizer’s phone choose <b>Import code</b> and scan this QR. It changes every second to match clocks, so keep the screen steady until it’s read. You can send again after more splits.',resCode)}
 function hdelModal(el){
   const k=S.hm[S.hc],i=S.modal.i;
-  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Delete this split?</h2><p class="hint">${ord(i)} split at ${tod(k.taps[i])}. Splits after it move up one place.</p>
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Delete this split?</h2><p class="hint">${ord(i)} split. Splits after it move up one place.</p>
   <div class="bar"><button class="s" id="mc">Cancel</button><button class="p" id="dl">Delete</button></div></div></div>`;
   $('#mc').onclick=()=>{S.modal=null;render()};
   $('#dl').onclick=()=>{k.taps.splice(i,1);S.modal=null;render()};
@@ -572,7 +600,7 @@ function drawHelper(){
   if(S.phase==='hsetup'){
     a.innerHTML=`<h1>Which markers are you timing?</h1><p class="hint">${inv.o.length} runners. Pick one or more markers — you can switch between them while timing.</p>
     ${inv.A==null?'<div class="card"><b>Clock not matched</b><div class="hint" style="margin:4px 0 0">You pasted the code instead of scanning it, so this phone’s clock can’t be matched to the organizer’s. Scan the QR with the camera for the most accurate times.</div></div>':''}
-    ${inv.mk.map((k,i)=>`<label class="chk"><input type="checkbox" data-s="${i}" ${S.hsel.includes(i)?'checked':''}><span>${esc(k[0])}${k[1]!==''?' · '+esc(k[1])+' '+esc(inv.u):''}</span></label>`).join('')}
+    ${inv.mk.map((k,i)=>`<label class="chk"><input type="checkbox" data-s="${i}" ${S.hsel.includes(i)?'checked':''}><span>${esc(k[0])}</span></label>`).join('')}
     <div class="bar" style="margin-top:12px"><button class="s" id="hb">← Back</button><button class="p" id="hgo" ${S.hsel.length?'':'disabled'}>Start timing</button></div>`;
     a.querySelectorAll('[data-s]').forEach(c=>c.onchange=()=>{const i=+c.dataset.s;S.hsel=c.checked?[...S.hsel,i].sort((x,y)=>x-y):S.hsel.filter(x=>x!==i);render()});
     $('#hb').onclick=()=>{S.phase='hhome';render()};
@@ -589,8 +617,8 @@ function drawHelper(){
   <button class="p lap" id="hlap" ${full?'disabled':''}>${full?'All splits taken here':'Take split · '+ord(k.taps.length)+' runner'}</button>
   <div class="bar"><button class="s" id="hundo" ${k.taps.length?'':'disabled'}>Undo last</button><button class="s" id="hsend">Send to organizer</button></div>
   <div class="tabs">${S.hm.map((m,i)=>`<button class="tab ${i===S.hc?'on':''}" data-t="${i}">${esc(m.label)} · ${m.taps.length}/${m.actual.length}</button>`).join('')}</div>
-  <p class="hint">Drag ☰ to put names in the order they passed. Tap a time to delete a mistaken split.</p>
-  <div class="grid"><div class="slots" style="width:108px">${k.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${i<k.taps.length?`data-ti="${i}"`:''}>${i<k.taps.length?tod(k.taps[i]):'—'}</span><small>${i>0&&i<k.taps.length?'+'+fmt(k.taps[i]-k.taps[i-1]):''}</small></div>`).join('')}</div>
+  <p class="hint">Drag ☰ to put names in the order they passed. Gaps show how far behind 1st each runner was. Tap a ✓ to delete a mistaken split.</p>
+  <div class="grid"><div class="slots" style="width:108px">${k.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${i<k.taps.length?`data-ti="${i}"`:''}>${i<k.taps.length?'✓ Split taken':'—'}</span><small>${i===0&&k.taps.length?'Leader':i>0&&i<k.taps.length?'+'+fmt(k.taps[i]-k.taps[0])+' behind':''}</small></div>`).join('')}</div>
   <div class="list" id="act">${k.actual.map(id=>`<div class="row" data-id="${id}"><span class="h">☰</span><span class="nm">${esc(nameOf(id))}</span></div>`).join('')}</div></div>
   <div class="bar" style="margin-top:12px"><button class="s" id="hchg">Change markers</button><button class="s" id="hend">End session</button></div>`;
   sortable($('#act'),ids=>{k.actual=ids.map(Number);render()});
@@ -639,11 +667,11 @@ function removeRunner(id){
 }
 function startRace(){
   S.pred=S.order.map(p=>String(p.id));
-  S.markers=mks().map(k=>({label:k.label,dist:(!S.marks.length&&k.dist===''&&+S.total>0)?S.total:k.dist,actual:S.order.map(p=>p.id),laps:[]}));S.cur=0;
+  S.markers=mks().map((k,i)=>{const useTot=!S.marks.length&&k.dist===''&&+S.total>0;const m={label:k.label,dist:useTot?S.total:k.dist,unit:useTot?S.unit:(k.unit||S.unit),actual:S.order.map(p=>p.id),laps:[]};relabel(m,i);return m});S.cur=0;
   S.final=0;S.rid=S.invRid||Math.random().toString(36).slice(2,8);S.invRid='';S.epoch=Date.now();S.phase='race';S.start=performance.now();render();tick();
 }
 function addMarker(){
-  S.markers.push({label:'Marker '+(S.markers.length+1),dist:'',actual:[...M().actual],laps:[]});
+  S.markers.push({label:'Marker '+(S.markers.length+1),dist:'',unit:M().unit||S.unit,actual:[...M().actual],laps:[]});
   S.cur=S.markers.length-1;render();
 }
 function tick(){const c=$('#clk');if(c&&S.phase==='race')c.textContent=fmt(now());if(S.phase==='race')S.raf=requestAnimationFrame(tick)}

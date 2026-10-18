@@ -38,9 +38,10 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - **Add names** — type a name and tap **Add** (or press Enter).
 - **Predicted order** — drag the **☰** handle to put runners in the order you expect them to finish (top = first).
 - **Remove a name** — tap the **×** next to it.
-- **Markers** — add the points where you'll take splits (for example Mile 1, Mile 2, Finish). Tap a marker chip to remove it. Leave this empty for a single marker; you can add more during the race.
+- **Team presets** — tap **Team presets** to save the current names as a named team, or load a saved team. Loading replaces the current names; then just drag them into your predicted order. Saving under an existing team name updates it. Delete a team by tapping Delete twice.
+- **Markers** — enter the distance of each split point and choose **mi** or **km** for that marker, then tap **Add**. Markers are named automatically from the distance (for example "1 mi" or "1 km") and sorted by distance, so you can mix miles and kilometers in one race. Tap a marker chip to remove it. Leave this empty for a single marker; you can add more during the race.
 - **Continue** — goes to the Distances screen.
-- **Distances (optional)** — choose **Miles** or **Kilometers**, enter the total race distance, and enter how far along each marker is. These are only used for the time estimates. You can skip this.
+- **Total distance (optional)** — choose **Miles** or **Kilometers** and enter the total race distance. It's only used for the finish estimates (the app converts between miles and kilometers for you). You can skip this.
 - **Ready screen** — check the line-up and markers. Tap **Start race** to start the clock, or **← Back to edit** to change anything.
 
 ---
@@ -55,7 +56,7 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - **Estimates** — once a split is recorded, each runner shows **Arr** (estimated arrival at the marker you're on) and **Fin** (estimated final time). **~** means based on that runner's own average pace. **≈** means the runner has no split yet, so the group average is used. Estimates update with every split and aren't saved between races.
 - **Marker tabs** — tap a tab to switch markers. A new marker starts with the previous marker's order, so you only fix what changed.
 - **+ Marker** — adds another marker during the race.
-- **Rename a marker / set its distance** — use the two boxes under the tabs.
+- **Change a marker's distance or unit** — use the boxes under the tabs. The marker's name updates automatically.
 - **Edit runners** — opens a menu where you can:
   - fix a name's spelling (tap the name, type, press Enter)
   - remove a runner with **×** (this also removes their times at every marker)
@@ -101,9 +102,9 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 **Helper**
 - Open the app, choose the **Helper** tab, and tap **Scan organizer's QR**.
 - **Pick your markers** — choose one or more. You can switch between them while timing.
-- **Take split** — tap it each time a runner passes. Each tap saves the exact time; the race clock isn't needed.
+- **Take split** — tap it each time a runner passes. Each tap saves the exact time privately; the clock time isn't shown. The spot gets a **✓ Split taken** mark instead, and every runner after the leader shows how far **behind 1st** they were.
 - **Drag ☰** to put the names in the order the runners came by. Times stay with the place (1st, 2nd, ...).
-- **Undo last** removes the most recent tap. To delete a mistaken tap in the middle, tap its time and choose **Delete** (later splits move up one place).
+- **Undo last** removes the most recent tap. To delete a mistaken tap in the middle, tap its ✓ and choose **Delete** (later splits move up one place).
 - **Send to organizer** shows a results QR. The organizer scans it. You can send again after taking more splits.
 - **Change markers** adds or drops markers; **End session** clears this phone's helper times (tap twice).
 - Helper sessions are saved on the phone, so closing the app doesn't lose your taps.
@@ -129,4 +130,4 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - Upload the **individual files** (not the zip) to the top level of a public GitHub repo: `index.html`, `sw.js`, `qrgen.js`, `manifest.webmanifest`, the three icon `.png` files, and `jsQR.js`.
 - **Settings → Pages** → Deploy from a branch → `main` / `(root)`. Your link will look like `https://yourname.github.io/reponame/`.
 - For the QR scanner, download `https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js`, save it as `jsQR.js`, and upload it with the other files.
-- Reuploading a file with the same name replaces it. When you change files, change `rst-v3` to `rst-v4` (and so on) on the first line of `sw.js` so phones pick up the update.
+- Reuploading a file with the same name replaces it. When you change files, change `rst-v4` to `rst-v5` (and so on) on the first line of `sw.js` so phones pick up the update.
