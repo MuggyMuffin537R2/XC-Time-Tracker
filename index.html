@@ -618,7 +618,7 @@ function drawHelper(){
   <div class="bar"><button class="s" id="hundo" ${k.taps.length?'':'disabled'}>Undo last</button><button class="s" id="hsend">Send to organizer</button></div>
   <div class="tabs">${S.hm.map((m,i)=>`<button class="tab ${i===S.hc?'on':''}" data-t="${i}">${esc(m.label)} · ${m.taps.length}/${m.actual.length}</button>`).join('')}</div>
   <p class="hint">Drag ☰ to put names in the order they passed. Gaps show how far behind 1st each runner was. Tap a ✓ to delete a mistaken split.</p>
-  <div class="grid"><div class="slots" style="width:108px">${k.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${i<k.taps.length?`data-ti="${i}"`:''}>${i<k.taps.length?'✓ Split taken':'—'}</span><small>${i===0&&k.taps.length?'Leader':i>0&&i<k.taps.length?'+'+fmt(k.taps[i]-k.taps[0])+' behind':''}</small></div>`).join('')}</div>
+  <div class="grid"><div class="slots" style="width:108px">${k.actual.map((_,i)=>`<div class="slot" ${i<k.taps.length?`data-ti="${i}" style="cursor:pointer"`:''}><b>${ord(i)}${i<k.taps.length?' ✓':''}</b><span>${i===0&&k.taps.length?'Leader':i>0&&i<k.taps.length?'+'+fmt(k.taps[i]-k.taps[0]):'—'}</span></div>`).join('')}</div>
   <div class="list" id="act">${k.actual.map(id=>`<div class="row" data-id="${id}"><span class="h">☰</span><span class="nm">${esc(nameOf(id))}</span></div>`).join('')}</div></div>
   <div class="bar" style="margin-top:12px"><button class="s" id="hchg">Change markers</button><button class="s" id="hend">End session</button></div>`;
   sortable($('#act'),ids=>{k.actual=ids.map(Number);render()});

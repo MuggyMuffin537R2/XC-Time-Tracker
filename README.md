@@ -102,7 +102,7 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 **Helper**
 - Open the app, choose the **Helper** tab, and tap **Scan organizer's QR**.
 - **Pick your markers** — choose one or more. You can switch between them while timing.
-- **Take split** — tap it each time a runner passes. Each tap saves the exact time privately; the clock time isn't shown. The spot gets a **✓ Split taken** mark instead, and every runner after the leader shows how far **behind 1st** they were.
+- **Take split** — tap it each time a runner passes. Each tap saves the exact time privately; the clock time isn't shown. A **✓** appears next to the place number instead, and every runner after the leader shows how far **behind 1st** they were (the leader shows "Leader").
 - **Drag ☰** to put the names in the order the runners came by. Times stay with the place (1st, 2nd, ...).
 - **Undo last** removes the most recent tap. To delete a mistaken tap in the middle, tap its ✓ and choose **Delete** (later splits move up one place).
 - **Send to organizer** shows a results QR. The organizer scans it. You can send again after taking more splits.
@@ -130,4 +130,4 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - Upload the **individual files** (not the zip) to the top level of a public GitHub repo: `index.html`, `sw.js`, `qrgen.js`, `manifest.webmanifest`, the three icon `.png` files, and `jsQR.js`.
 - **Settings → Pages** → Deploy from a branch → `main` / `(root)`. Your link will look like `https://yourname.github.io/reponame/`.
 - For the QR scanner, download `https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js`, save it as `jsQR.js`, and upload it with the other files.
-- Reuploading a file with the same name replaces it. When you change files, change `rst-v4` to `rst-v5` (and so on) on the first line of `sw.js` so phones pick up the update.
+- Reuploading a file with the same name replaces it. When you change files, change `rst-v5` to `rst-v6` (and so on) on the first line of `sw.js` so phones pick up the update.
