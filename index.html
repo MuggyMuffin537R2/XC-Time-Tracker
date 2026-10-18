@@ -601,7 +601,7 @@ function drawHelper(){
     a.innerHTML=`<h1>Which markers are you timing?</h1><p class="hint">${inv.o.length} runners. Pick one or more markers — you can switch between them while timing.</p>
     ${inv.A==null?'<div class="card"><b>Clock not matched</b><div class="hint" style="margin:4px 0 0">You pasted the code instead of scanning it, so this phone’s clock can’t be matched to the organizer’s. Scan the QR with the camera for the most accurate times.</div></div>':''}
     ${inv.mk.map((k,i)=>`<label class="chk"><input type="checkbox" data-s="${i}" ${S.hsel.includes(i)?'checked':''}><span>${esc(k[0])}</span></label>`).join('')}
-    <div class="bar" style="margin-top:12px"><button class="s" id="hb">← Back</button><button class="p" id="hgo" ${S.hsel.length?'':'disabled'}>Start timing</button></div>`;
+    <div class="bar" style="margin-top:12px"><button class="s" id="hb">← Back</button><button class="p" id="hgo" ${S.hsel.length?'':'disabled'}>Continue</button></div>`;
     a.querySelectorAll('[data-s]').forEach(c=>c.onchange=()=>{const i=+c.dataset.s;S.hsel=c.checked?[...S.hsel,i].sort((x,y)=>x-y):S.hsel.filter(x=>x!==i);render()});
     $('#hb').onclick=()=>{S.phase='hhome';render()};
     $('#hgo').onclick=()=>{
@@ -613,7 +613,7 @@ function drawHelper(){
   }
   const k=S.hm[S.hc],n=k.actual.length,full=k.taps.length>=n,nameOf=id=>{const x=inv.o.find(r=>r[0]==id);return x?x[1]:'?'};
   a.innerHTML=`<h1>Timing as helper</h1>
-  <p class="hint" style="margin-top:-6px">No race clock needed — each tap saves the exact time.</p>
+  <p class="hint" style="margin-top:-6px">No stopwatch shown since exact split times are unknown until exported to the organizer.</p>
   <button class="p lap" id="hlap" ${full?'disabled':''}>${full?'All splits taken here':'Take split · '+ord(k.taps.length)+' runner'}</button>
   <div class="bar"><button class="s" id="hundo" ${k.taps.length?'':'disabled'}>Undo last</button><button class="s" id="hsend">Send to organizer</button></div>
   <div class="tabs">${S.hm.map((m,i)=>`<button class="tab ${i===S.hc?'on':''}" data-t="${i}">${esc(m.label)} · ${m.taps.length}/${m.actual.length}</button>`).join('')}</div>
