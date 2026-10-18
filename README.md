@@ -24,7 +24,16 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 
 ---
 
-## Setting up a race
+## Organizer or Helper
+
+- The first screen has an **Organizer | Helper** toggle at the top.
+- **Organizer** — runs the race: names, markers, distances, the clock, results, Excel export. Only the Organizer tab shows the race setup.
+- **Helper** — times splits at one or more markers for an organizer, without needing the race clock. See *Helpers* below.
+- Switching tabs is only possible from the first screen, not in the middle of a race or helper session.
+
+---
+
+## Setting up a race (Organizer)
 
 - **Add names** — type a name and tap **Add** (or press Enter).
 - **Predicted order** — drag the **☰** handle to put runners in the order you expect them to finish (top = first).
@@ -80,8 +89,44 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 
 ---
 
+## Helpers (timing without the race clock)
+
+**Organizer**
+- Finish the names, markers and distances first, then tap **Invite helpers (QR)** (on the Ready screen or during the race).
+- Helpers scan the QR. Hold the screen steady; the code changes every second so each helper's phone can match your clock.
+- You must press **Start race** on your phone so the app has a start time. Helpers can send results before or after.
+- When a helper shows their results QR, tap **Import code → Scan QR with camera**. The splits fill in automatically, using each tap's exact time. A message tells you how well the clocks matched.
+- Results are **fill-in only**: they never overwrite times you already have. If two helpers time the same marker, the first one imported wins for each runner.
+
+**Helper**
+- Open the app, choose the **Helper** tab, and tap **Scan organizer's QR**.
+- **Pick your markers** — choose one or more. You can switch between them while timing.
+- **Take split** — tap it each time a runner passes. Each tap saves the exact time; the race clock isn't needed.
+- **Drag ☰** to put the names in the order the runners came by. Times stay with the place (1st, 2nd, ...).
+- **Undo last** removes the most recent tap. To delete a mistaken tap in the middle, tap its time and choose **Delete** (later splits move up one place).
+- **Send to organizer** shows a results QR. The organizer scans it. You can send again after taking more splits.
+- **Change markers** adds or drops markers; **End session** clears this phone's helper times (tap twice).
+- Helper sessions are saved on the phone, so closing the app doesn't lose your taps.
+
+**Clock matching**
+- Scanning matches clocks both ways: the helper's phone compares its clock when it scans the invite, and the organizer's phone compares again when it scans the results. Averaging the two cancels most of the delay. In testing the math this lands within about a tenth of a second, but real cameras vary, so treat helper times as accurate to roughly a fraction of a second.
+- **Pasted text codes can't match clocks.** If you paste instead of scanning, the app assumes the phones agree. Keep phones on automatic date & time.
+- If the organizer changes names or markers after inviting helpers, invite them again.
+
+---
+
 ## Saving
 
-- **Automatic** — the race saves on the phone after every split and edit. If you close the app mid-race and reopen it, the race comes back and the clock has kept counting.
+- **Automatic** — the race saves on the phone after every split and edit.
+- **Resume prompt** — if you close the app in the middle of a race, reopening it asks **Resume last race?** It shows how many runners and splits were recorded and what the clock would read now (the clock keeps counting while the app is closed). Tap **Resume race** to carry on, or **Discard race** (tap twice) to start over with your names and markers kept. Finished races and unfinished setups reopen on their own without asking.
 - **Saved races** (on the first screen) — every finished race is kept, up to 30. For each one you can **Open** it, send it to **Excel**, or **Delete** it (tap twice).
 - Saved data lives only on that phone. Export anything important.
+
+---
+
+## Hosting (one-time, for whoever sets it up)
+
+- Upload the **individual files** (not the zip) to the top level of a public GitHub repo: `index.html`, `sw.js`, `qrgen.js`, `manifest.webmanifest`, the three icon `.png` files, and `jsQR.js`.
+- **Settings → Pages** → Deploy from a branch → `main` / `(root)`. Your link will look like `https://yourname.github.io/reponame/`.
+- For the QR scanner, download `https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js`, save it as `jsQR.js`, and upload it with the other files.
+- Reuploading a file with the same name replaces it. When you change files, change `rst-v3` to `rst-v4` (and so on) on the first line of `sw.js` so phones pick up the update.

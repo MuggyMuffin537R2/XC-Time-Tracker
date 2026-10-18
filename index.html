@@ -59,6 +59,11 @@ button.s{font:inherit;border:1px solid var(--ln);border-radius:10px;background:v
 .rr{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--ln);padding:4px 0;font-weight:600}
 label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
 .rr input{margin:4px 8px 4px 0;padding:8px 10px;font-weight:600}
+.seg{display:flex;background:var(--card);border:1px solid var(--ln);border-radius:999px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;font:inherit;font-weight:700;border:0;background:none;color:var(--mut);padding:10px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--ac);color:#fff}
+input[type=checkbox]{width:22px;height:22px;flex:none;padding:0}
+.chk{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin:0 0 8px;font-weight:600;font-size:16px;color:var(--tx);cursor:pointer}
 .flash{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));background:var(--ac);color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;z-index:30;display:none;box-shadow:0 4px 14px #0004;white-space:nowrap}
 textarea{background:var(--card);color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:8px;font-family:ui-monospace,Menlo,monospace}
 summary{cursor:pointer;margin:8px 0}
@@ -69,7 +74,7 @@ summary{cursor:pointer;margin:8px 0}
 <script src="jsQR.js"></script>
 <script>
 const $=s=>document.querySelector(s);
-let S={phase:'setup',order:[],pred:[],marks:[],def:{label:'Marker 1',dist:''},total:'',unit:'mi',markers:[],cur:0,start:0,final:0,raf:0,nid:1,rid:'',epoch:0,flash:'',modal:null,draft:null};
+let S={phase:'setup',order:[],pred:[],marks:[],def:{label:'Marker 1',dist:''},total:'',unit:'mi',markers:[],cur:0,start:0,final:0,raf:0,nid:1,rid:'',epoch:0,flash:'',invRid:'',hinv:null,hsel:[],hm:[],hc:0,modal:null,draft:null};
 const M=()=>S.markers[S.cur];
 const mks=()=>S.marks.length?S.marks:[S.def];
 const fmt=ms=>{const t=Math.floor(ms/10),c=t%100,s=Math.floor(t/100)%60,m=Math.floor(t/6000);return m+':'+String(s).padStart(2,'0')+'.'+String(c).padStart(2,'0')};
@@ -110,9 +115,11 @@ function sortable(el,done){
 function render(){draw();renderModal();flashUI();saveState()}
 
 function draw(){
+  if(S.phase[0]==='h')return drawHelper();
   const a=$('#app');
   if(S.phase==='setup'){
     a.innerHTML=`<h1>Race Split Taker</h1>
+    ${modeSeg('org')}
     <div class="bar"><button class="s" id="scn">Import code</button><button class="s" id="hst">Saved races</button></div>
     <div class="add"><input id="in" placeholder="Add a name" autocomplete="off"><button class="p" id="addb">Add</button></div>
     <p class="hint">Drag ☰ to set your predicted finish order (top = first).</p>
@@ -123,7 +130,7 @@ function draw(){
     <div class="tabs" style="flex-wrap:wrap">${S.marks.map((k,i)=>`<button class="tab" data-m="${i}">${i+1}. ${esc(k.label)} ×</button>`).join('')}</div>
     <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>`;
     const add=()=>{const v=$('#in').value.trim();if(!v)return;S.order.push({id:S.nid++,name:v});render();$('#in').focus()};
-    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};
+    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};bindSeg();
     a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.order=S.order.filter(p=>p.id!=b.dataset.x);render()});
     sortable($('#lst'),ids=>{S.order=ids.map(byId);render()});
     const addMk=()=>{const v=$('#min').value.trim();if(!v)return;S.marks.push({label:v,dist:''});render();$('#min').focus()};
@@ -212,7 +219,7 @@ function renderModal(){
   const el=$('#modal'),md=S.modal;
   stopCam();if(!md){el.innerHTML='';return}
   const m=M();
-  if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
+  if(md.type==='resume')return resumeModal(el);if(md.type==='invite')return inviteModal(el);if(md.type==='hres')return hresModal(el);if(md.type==='hdel')return hdelModal(el);if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
     el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit time</h2>
     <p class="hint">${ord(md.i)} runner · ${esc(byId(m.actual[md.i]).name)}</p>
     <input id="tt" value="${esc(md.t)}" inputmode="decimal">
@@ -244,7 +251,15 @@ function renderModal(){
   $('#ma').onclick=()=>{const name=d.name.trim();if(!name)return;addRunner(name,d.pos,done?parse(d.time):null);S.draft=newDraft();render()};
 }
 
-function bindSync(){const s=$('#shr'),c=$('#scn');if(s){s.textContent='Export code';s.onclick=()=>{S.modal={type:'share'};render()}}if(c){c.textContent='Import code';c.onclick=()=>{S.modal={type:'scan'};render()}}}
+function bindSync(){
+  const s=$('#shr'),c=$('#scn');
+  if(s){
+    s.textContent='Export code';s.onclick=()=>{S.modal={type:'share'};render()};
+    if(S.phase!=='done'&&!$('#inv'))s.parentNode.insertAdjacentHTML('afterend','<div class="bar"><button class="s" id="inv">Invite helpers (QR)</button></div>');
+    if($('#inv'))$('#inv').onclick=()=>{S.modal={type:'invite'};render()};
+  }
+  if(c){c.textContent='Import code';c.onclick=()=>{S.modal={type:'scan'};render()}}
+}
 function flashUI(){let f=$('#flash');if(!f){f=document.createElement('div');f.id='flash';f.className='flash';document.body.appendChild(f)}f.textContent=S.flash;f.style.display=S.flash?'block':'none'}
 function setFlash(msg){S.flash=msg;flashUI();clearTimeout(setFlash.t);setFlash.t=setTimeout(()=>{S.flash='';flashUI()},3500)}
 function encodeState(){
@@ -252,9 +267,9 @@ function encodeState(){
   if(S.phase==='race'||S.phase==='done')p.mk=S.markers.map(k=>[k.label,k.dist,k.actual,k.laps.map(x=>x==null?null:Math.round(x)),k.touched?1:0]);
   return 'RST1:'+JSON.stringify(p).replace(/[\u007f-\uffff]/g,c=>'\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
 }
-function importCode(txt){
+function importCode(txt,scanAt){
   let p;
-  try{txt=String(txt).trim();if(!txt.startsWith('RST1:'))return false;p=JSON.parse(txt.slice(5));if(!Array.isArray(p.o))return false}catch(e){return false}
+  try{txt=String(txt).trim();if(!txt.startsWith('RST1:'))return false;p=JSON.parse(txt.slice(5));if(p.k==='inv')return importInvite(p,scanAt);if(p.k==='res')return importResult(p,scanAt);if(!Array.isArray(p.o))return false}catch(e){return false}
   const run=(p.ph==='race'||p.ph==='done')&&Array.isArray(p.mk);
   const same=run&&p.r&&p.r===S.rid&&(S.phase==='race'||S.phase==='done');
   if(same){
@@ -307,7 +322,7 @@ function drawQR(cv,code,msg){
   }catch(e){cv.style.display='none';msg.textContent='Too much data for one QR — copy the code below instead.'}
 }
 let CAM=null;
-function stopCam(){if(CAM){CAM.on=false;if(CAM.stream)CAM.stream.getTracks().forEach(t=>t.stop());CAM=null}}
+function stopCam(){stopLive();if(CAM){CAM.on=false;if(CAM.stream)CAM.stream.getTracks().forEach(t=>t.stop());CAM=null}}
 function shareModal(el){
   const code=encodeState();
   el.innerHTML=`<div class="ov"><div class="mdl"><h2>Export</h2>
@@ -331,7 +346,7 @@ function scanModal(el){
   <textarea id="pc" placeholder="RST1:…" style="width:100%;height:90px;font-size:12px"></textarea>
   <div class="bar" style="margin-top:10px"><button class="s" id="mc">Close</button><button class="s" id="pt">Paste</button><button class="p" id="pi">Import</button></div></div></div>`;
   $('#mc').onclick=()=>{S.modal=null;render()};
-  $('#cam').onclick=startCam;
+  $('#cam').onclick=startCam;el.querySelector('.hint').textContent=S.phase[0]==='h'?'Scan the organizer’s Invite helpers QR with the camera for the best clock match, or paste their text code.':'Scan or paste a code from another phone. A race code loads (or fills in) a race; a helper’s results are turned into splits automatically.';
   $('#pt').onclick=async()=>{try{const t=await navigator.clipboard.readText();$('#pc').value=t;$('#sm').textContent=t?'Pasted — tap Import.':'Clipboard is empty.'}catch(e){$('#sm').textContent='Paste isn’t allowed here — press and hold in the box and choose Paste.'}};
   $('#pi').onclick=()=>{if(!importCode($('#pc').value))$('#sm').textContent='That doesn’t look like a valid code. Paste the whole thing, starting with RST1:'};
 }
@@ -348,7 +363,7 @@ async function startCam(){
     if(!my.on){st.getTracks().forEach(t=>t.stop());return}
     my.stream=st;v.srcObject=st;v.style.display='block';await v.play();msg.textContent='Looking for a QR code…';
     const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
-    const got=t=>t&&t.startsWith('RST1:')&&importCode(t);
+    const got=t=>t&&t.startsWith('RST1:')&&importCode(t,Date.now());
     const loop=async()=>{
       if(!my.on)return;
       try{
@@ -429,8 +444,9 @@ function copyTable(d){
 }
 const getHist=()=>{try{return JSON.parse(localStorage.getItem('rst-history-v1')||'[]')}catch(e){return[]}};
 const histTitle=e=>new Date(e.epoch||e.saved).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+' · '+e.order.length+' runners';
-const snapOf=()=>({phase:S.phase,order:S.order,pred:S.pred,marks:S.marks,def:S.def,total:S.total,unit:S.unit,markers:S.markers,cur:S.cur,final:S.final,nid:S.nid,rid:S.rid,epoch:S.epoch,saved:Date.now()});
+const snapOf=()=>({phase:S.phase,order:S.order,pred:S.pred,marks:S.marks,def:S.def,total:S.total,unit:S.unit,markers:S.markers,cur:S.cur,final:S.final,nid:S.nid,rid:S.rid,epoch:S.epoch,invRid:S.invRid,hinv:S.hinv,hsel:S.hsel,hm:S.hm,hc:S.hc,saved:Date.now()});
 function saveState(){
+  if(!SAVE_OK)return;
   try{
     localStorage.setItem('rst-save-v1',JSON.stringify(snapOf()));
     if(S.phase==='done'&&S.rid){
@@ -442,14 +458,30 @@ function saveState(){
 }
 function loadSnap(o){
   cancelAnimationFrame(S.raf);
-  Object.assign(S,{phase:o.phase,order:o.order||[],pred:o.pred||[],marks:o.marks||[],def:o.def||{label:'Marker 1',dist:''},total:o.total||'',unit:o.unit||'mi',markers:o.markers||[],cur:Math.min(o.cur||0,Math.max(0,(o.markers||[]).length-1)),final:o.final||0,nid:o.nid||1,rid:o.rid||'',epoch:o.epoch||0,modal:null});
+  Object.assign(S,{phase:o.phase,order:o.order||[],pred:o.pred||[],marks:o.marks||[],def:o.def||{label:'Marker 1',dist:''},total:o.total||'',unit:o.unit||'mi',markers:o.markers||[],cur:Math.min(o.cur||0,Math.max(0,(o.markers||[]).length-1)),final:o.final||0,nid:o.nid||1,rid:o.rid||'',epoch:o.epoch||0,invRid:o.invRid||'',hinv:o.hinv||null,hsel:o.hsel||[],hm:o.hm||[],hc:o.hc||0,modal:null});
   if(S.phase==='race')S.start=performance.now()-(Date.now()-S.epoch);
 }
+let SAVE_OK=false;
 function restore(){
   let o=null;try{o=JSON.parse(localStorage.getItem('rst-save-v1')||'null')}catch(e){}
-  if(!o||!o.phase)return;
-  loadSnap(o);render();
-  if(S.phase==='race'){tick();setFlash('Race restored — clock kept running')}
+  if(!o||!o.phase){SAVE_OK=true;return}
+  if(o.phase==='race'){S.pending=o;S.modal={type:'resume'};render();return}
+  loadSnap(o);SAVE_OK=true;render();
+}
+function resumeModal(el){
+  const o=S.pending,laps=(o.markers||[]).reduce((a,k)=>a+k.laps.filter(x=>x!=null).length,0);
+  const when=new Date(o.epoch).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Resume last race?</h2>
+  <p class="hint">You left a race in progress: ${o.order.length} runner${o.order.length===1?'':'s'}, ${laps} split${laps===1?'':'s'} recorded, started ${esc(when)}. The clock kept running while the app was closed and would now read <b>${fmtE(Math.max(0,Date.now()-o.epoch))}</b>.</p>
+  <div class="bar"><button class="s" id="dr">Discard race</button><button class="p" id="rr">Resume race</button></div></div></div>`;
+  $('#rr').onclick=()=>{loadSnap(o);S.pending=null;SAVE_OK=true;render();tick();setFlash('Race resumed')};
+  $('#dr').onclick=()=>{
+    const b=$('#dr');
+    if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='Tap again to discard';return}
+    S.pending=null;S.modal=null;
+    Object.assign(S,{phase:'setup',order:o.order||[],pred:[],marks:o.marks||[],def:o.def||{label:'Marker 1',dist:''},total:o.total||'',unit:o.unit||'mi',markers:[],cur:0,nid:o.nid||1,rid:'',epoch:0,final:0});
+    SAVE_OK=true;render();setFlash('Race discarded — names kept');
+  };
 }
 function histModal(el){
   const h=getHist();
@@ -464,6 +496,113 @@ function histModal(el){
     h.splice(+b.dataset.d,1);try{localStorage.setItem('rst-history-v1',JSON.stringify(h))}catch(e){}renderModal();
   });
 }
+/*HELPER-START*/
+let LIVE=0;
+function stopLive(){if(LIVE){clearInterval(LIVE);LIVE=0}}
+function startLive(fn,ms){stopLive();fn();LIVE=setInterval(fn,ms)}
+const jc=p=>'RST1:'+JSON.stringify(p).replace(/[\u007f-\uffff]/g,c=>'\\u'+('0000'+c.charCodeAt(0).toString(16)).slice(-4));
+const tod=ms=>{const d=new Date(ms),p=n=>String(n).padStart(2,'0');return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+'.'+p(Math.floor(d.getMilliseconds()/10))};
+const modeSeg=cur=>`<div class="seg"><button class="${cur==='org'?'on':''}" data-md="org">Organizer</button><button class="${cur==='help'?'on':''}" data-md="help">Helper</button></div>`;
+function bindSeg(){document.querySelectorAll('#app [data-md]').forEach(b=>b.onclick=()=>{S.phase=b.dataset.md==='org'?'setup':'hhome';render()})}
+
+function invCode(){
+  const live=S.phase==='race'||S.phase==='done';
+  const r=live?S.rid:(S.invRid||(S.invRid=Math.random().toString(36).slice(2,8)));
+  const ms=live?S.markers.map(k=>[k.label,k.dist]):mks().map(k=>[k.label,k.dist]);
+  return jc({k:'inv',v:1,r,o:S.order.map(x=>[x.id,x.name]),mk:ms,u:S.unit,t:Date.now()});
+}
+function resCode(){
+  const hm=S.hm.filter(k=>k.taps.length),all=hm.flatMap(k=>k.taps),b=all.length?Math.min(...all):0;
+  return jc({k:'res',v:1,r:S.hinv.r,tg:Date.now(),cal:S.hinv.A,b,m:hm.map(k=>[k.idx,k.actual,k.taps.map(t=>t-b)])});
+}
+function importInvite(p,scanAt){
+  if(S.phase[0]!=='h'){setFlash('That’s a helper invite — open the Helper tab first');return false}
+  if(!Array.isArray(p.o)||!Array.isArray(p.mk))return false;
+  S.hinv={r:p.r,o:p.o,mk:p.mk,u:p.u||'',A:(scanAt!=null&&p.t!=null)?p.t-scanAt:null};
+  S.hsel=[];S.hm=[];S.hc=0;S.phase='hsetup';S.modal=null;render();
+  setFlash(S.hinv.A!=null?'Invite loaded — clock matched':'Invite loaded — clock not matched');return true;
+}
+function importResult(p,scanAt){
+  if(S.phase[0]==='h'){setFlash('Helper results go to the organizer’s phone');return false}
+  if(!(S.phase==='race'||S.phase==='done')||!S.epoch){setFlash('Start the race first, then import helper results');return false}
+  if(p.r!==S.rid){setFlash('Those results are from a different race');return false}
+  const A=p.cal==null?null:p.cal,B=(scanAt!=null&&p.tg!=null)?scanAt-p.tg:null;
+  const th=(A!=null&&B!=null)?(A+B)/2:(B!=null?B:(A!=null?A:0));
+  let n=0;
+  (p.m||[]).forEach(([idx,actual,offs])=>{
+    const L=S.markers[idx];if(!L)return;
+    const pairs=actual.map((id,i)=>[id,offs[i]==null?null:Math.max(0,p.b+offs[i]+th-S.epoch)]).filter(x=>byId(x[0]));
+    fillMarker(L,pairs.map(x=>x[0]),pairs.map(x=>x[1]),'');n++;
+  });
+  const q=(A!=null&&B!=null)?'clock matched both ways':(A!=null||B!=null)?'clock matched one way':'clock not matched';
+  S.modal=null;render();setFlash('Added helper splits to '+n+' marker'+(n===1?'':'s')+' · '+q);return true;
+}
+function liveModal(el,title,text,codeFn){
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>${title}</h2><p class="hint">${text}</p>
+  <div style="text-align:center"><canvas id="qrc" style="width:100%;max-width:340px;border-radius:8px;background:#fff;image-rendering:pixelated"></canvas><p class="hint" id="qrm"></p></div>
+  <details><summary class="hint">Text code (can’t match clocks)</summary><textarea id="cd" readonly style="width:100%;height:90px;font-size:12px"></textarea><p class="hint" id="cm" style="margin-top:6px"></p><button class="s" id="cp" style="width:100%">Copy code</button></details>
+  <div class="bar" style="margin-top:12px"><button class="s" id="mc">Close</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  $('#cd').value=codeFn();$('#cd').onclick=e=>e.target.select();
+  $('#cp').onclick=()=>copyText($('#cd').value,$('#cm'));
+  startLive(()=>{const c=$('#qrc');if(c)drawQR(c,codeFn(),$('#qrm'))},400);
+}
+function inviteModal(el){liveModal(el,'Invite helpers','Helpers open the app, choose the <b>Helper</b> tab, and scan this QR. The code changes every second — that’s how their phone matches your clock. Hold still while they scan. Finish names and markers first.',invCode)}
+function hresModal(el){liveModal(el,'Send to organizer','On the organizer’s phone choose <b>Import code</b> and scan this QR. It changes every second to match clocks, so keep the screen steady until it’s read. You can send again after more splits.',resCode)}
+function hdelModal(el){
+  const k=S.hm[S.hc],i=S.modal.i;
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Delete this split?</h2><p class="hint">${ord(i)} split at ${tod(k.taps[i])}. Splits after it move up one place.</p>
+  <div class="bar"><button class="s" id="mc">Cancel</button><button class="p" id="dl">Delete</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+  $('#dl').onclick=()=>{k.taps.splice(i,1);S.modal=null;render()};
+}
+function hlap(){const k=S.hm[S.hc];if(!k||k.taps.length>=k.actual.length)return;k.taps.push(Date.now());render()}
+function drawHelper(){
+  const a=$('#app'),inv=S.hinv;
+  if(S.phase==='hhome'){
+    a.innerHTML=`<h1>Race Split Taker</h1>${modeSeg('help')}
+    <p class="hint">Helpers time splits for an organizer. Ask the organizer to open <b>Invite helpers</b>, then scan their QR here. You don’t need the race clock — tap <b>Take split</b> each time a runner passes your marker, then drag the names into the order they came by.</p>
+    <button class="p" id="hscan" style="width:100%">Scan organizer’s QR</button>
+    ${inv?'<button class="s" id="hcont" style="width:100%;margin-top:10px">Continue current helper session</button>':''}
+    <p class="hint" style="margin-top:10px">Camera not working? Tap the button above and paste the organizer’s text code instead. Pasted codes can’t match clocks, so scanning is more accurate.</p>`;
+    bindSeg();$('#hscan').onclick=()=>{S.modal={type:'scan'};render()};
+    if(inv)$('#hcont').onclick=()=>{S.phase=S.hm.length?'htime':'hsetup';render()};
+    return;
+  }
+  if(S.phase==='hsetup'){
+    a.innerHTML=`<h1>Which markers are you timing?</h1><p class="hint">${inv.o.length} runners. Pick one or more markers — you can switch between them while timing.</p>
+    ${inv.A==null?'<div class="card"><b>Clock not matched</b><div class="hint" style="margin:4px 0 0">You pasted the code instead of scanning it, so this phone’s clock can’t be matched to the organizer’s. Scan the QR with the camera for the most accurate times.</div></div>':''}
+    ${inv.mk.map((k,i)=>`<label class="chk"><input type="checkbox" data-s="${i}" ${S.hsel.includes(i)?'checked':''}><span>${esc(k[0])}${k[1]!==''?' · '+esc(k[1])+' '+esc(inv.u):''}</span></label>`).join('')}
+    <div class="bar" style="margin-top:12px"><button class="s" id="hb">← Back</button><button class="p" id="hgo" ${S.hsel.length?'':'disabled'}>Start timing</button></div>`;
+    a.querySelectorAll('[data-s]').forEach(c=>c.onchange=()=>{const i=+c.dataset.s;S.hsel=c.checked?[...S.hsel,i].sort((x,y)=>x-y):S.hsel.filter(x=>x!==i);render()});
+    $('#hb').onclick=()=>{S.phase='hhome';render()};
+    $('#hgo').onclick=()=>{
+      const old=new Map(S.hm.map(k=>[k.idx,k]));
+      S.hm=S.hsel.map(i=>old.get(i)||{idx:i,label:inv.mk[i][0],dist:inv.mk[i][1],actual:inv.o.map(x=>x[0]),taps:[]});
+      S.hc=0;S.phase='htime';render();
+    };
+    return;
+  }
+  const k=S.hm[S.hc],n=k.actual.length,full=k.taps.length>=n,nameOf=id=>{const x=inv.o.find(r=>r[0]==id);return x?x[1]:'?'};
+  a.innerHTML=`<h1>Timing as helper</h1>
+  <p class="hint" style="margin-top:-6px">No race clock needed — each tap saves the exact time.</p>
+  <button class="p lap" id="hlap" ${full?'disabled':''}>${full?'All splits taken here':'Take split · '+ord(k.taps.length)+' runner'}</button>
+  <div class="bar"><button class="s" id="hundo" ${k.taps.length?'':'disabled'}>Undo last</button><button class="s" id="hsend">Send to organizer</button></div>
+  <div class="tabs">${S.hm.map((m,i)=>`<button class="tab ${i===S.hc?'on':''}" data-t="${i}">${esc(m.label)} · ${m.taps.length}/${m.actual.length}</button>`).join('')}</div>
+  <p class="hint">Drag ☰ to put names in the order they passed. Tap a time to delete a mistaken split.</p>
+  <div class="grid"><div class="slots" style="width:108px">${k.actual.map((_,i)=>`<div class="slot"><b>${ord(i)}</b><span ${i<k.taps.length?`data-ti="${i}"`:''}>${i<k.taps.length?tod(k.taps[i]):'—'}</span><small>${i>0&&i<k.taps.length?'+'+fmt(k.taps[i]-k.taps[i-1]):''}</small></div>`).join('')}</div>
+  <div class="list" id="act">${k.actual.map(id=>`<div class="row" data-id="${id}"><span class="h">☰</span><span class="nm">${esc(nameOf(id))}</span></div>`).join('')}</div></div>
+  <div class="bar" style="margin-top:12px"><button class="s" id="hchg">Change markers</button><button class="s" id="hend">End session</button></div>`;
+  sortable($('#act'),ids=>{k.actual=ids.map(Number);render()});
+  $('#hlap').onclick=hlap;
+  $('#hundo').onclick=()=>{k.taps.pop();render()};
+  $('#hsend').onclick=()=>{S.modal={type:'hres'};render()};
+  a.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.hc=+b.dataset.t;render()});
+  a.querySelectorAll('[data-ti]').forEach(b=>b.onclick=()=>{S.modal={type:'hdel',i:+b.dataset.ti};render()});
+  $('#hchg').onclick=()=>{S.phase='hsetup';render()};
+  $('#hend').onclick=e=>{const b=e.target;if(!b.dataset.sure){b.dataset.sure='1';b.textContent='Tap again — discards times';return}S.hinv=null;S.hm=[];S.hsel=[];S.hc=0;S.phase='hhome';render()};
+}
+/*HELPER-END*/
 function mergeRunners(a,b){
   S.markers.forEach(L=>{
     const ib=L.actual.indexOf(b);if(ib<0)return;
@@ -501,7 +640,7 @@ function removeRunner(id){
 function startRace(){
   S.pred=S.order.map(p=>String(p.id));
   S.markers=mks().map(k=>({label:k.label,dist:(!S.marks.length&&k.dist===''&&+S.total>0)?S.total:k.dist,actual:S.order.map(p=>p.id),laps:[]}));S.cur=0;
-  S.final=0;S.rid=Math.random().toString(36).slice(2,8);S.epoch=Date.now();S.phase='race';S.start=performance.now();render();tick();
+  S.final=0;S.rid=S.invRid||Math.random().toString(36).slice(2,8);S.invRid='';S.epoch=Date.now();S.phase='race';S.start=performance.now();render();tick();
 }
 function addMarker(){
   S.markers.push({label:'Marker '+(S.markers.length+1),dist:'',actual:[...M().actual],laps:[]});
@@ -517,7 +656,7 @@ function finish(){
   if(S.phase!=='race')return;
   S.final=performance.now()-S.start;S.phase='done';cancelAnimationFrame(S.raf);render();
 }
-document.addEventListener('keydown',e=>{if(e.code==='Space'&&S.phase==='race'&&!S.modal&&!['INPUT','SELECT','BUTTON'].includes(e.target.tagName)){e.preventDefault();lap()}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!S.modal&&!['INPUT','SELECT','BUTTON'].includes(e.target.tagName)){if(S.phase==='race'){e.preventDefault();lap()}else if(S.phase==='htime'){e.preventDefault();hlap()}}});
 render();
 try{restore()}catch(e){}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
