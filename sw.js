@@ -1,4 +1,4 @@
-const CACHE='rst-v7';
+const CACHE='rst-v8';
 const FILES=['./','index.html','qrgen.js','jsQR.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE)
