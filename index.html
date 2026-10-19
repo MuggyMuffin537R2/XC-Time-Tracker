@@ -124,7 +124,7 @@ function draw(){
   if(S.phase==='setup'){
     a.innerHTML=`<h1>Race Split Taker</h1>
     ${modeSeg('org')}
-    <div class="bar"><button class="s" id="scn">Import code</button><button class="s" id="hst">Saved races</button></div>
+    <div class="bar"><button class="s" id="scn">Import splits</button><button class="s" id="hst">Saved races</button></div>
     <div class="bar"><button class="s" id="tms">Team presets</button></div>
     <div class="add"><input id="in" placeholder="Add a name" autocomplete="off"><button class="p" id="addb">Add</button></div>
     <p class="hint">Drag ☰ to set your predicted finish order (top = first).</p>
@@ -184,7 +184,7 @@ function draw(){
   <div class="clock" id="clk">${fmt(now())}</div>
   ${D>0?`<p class="hint" style="text-align:center;margin-top:-6px">Total distance ${esc(S.total)} ${S.unit}</p>`:''}
   ${run?`<button class="p lap" id="lap" ${full?'disabled':''}>${full?'All splits taken here':'Take split · '+ord(m.laps.length)+' runner'}</button>
-  <div class="bar"><button class="s" id="edr">Edit runners</button><button class="s" id="stop">Finish race</button></div>
+  <div class="bar"><button class="s" id="undo" ${m.laps.length?'':'disabled'}>Undo last split</button><button class="s" id="edr">Edit runners</button><button class="s" id="stop">Finish race</button></div>
   <div class="bar"><button class="s" id="shr">Share QR</button><button class="s" id="scn">Scan QR</button></div>`
   :`<div class="bar"><button class="s" id="edr">Edit runners (add / remove)</button></div>
   <div class="bar"><button class="p" id="xl">Export to Excel</button><button class="s" id="cpt">Copy table</button></div>
@@ -204,7 +204,7 @@ function draw(){
   $('#dst').onchange=e=>{m.dist=e.target.value;relabel(m,S.cur);render()};
   $('#edr').onclick=()=>{S.draft=newDraft();S.modal={type:'runners'};render()};bindSync();
   if($('#xl')){$('#xl').onclick=()=>exportXlsx(S);$('#cpt').onclick=()=>copyTable(S)}
-  if(run){$('#lap').onclick=lap;$('#stop').onclick=finish;$('#addm').onclick=addMarker}
+  if(run){$('#lap').onclick=lap;$('#undo').onclick=()=>{if(m.laps.length){m.laps.pop();render();setFlash('Last split undone')}};$('#stop').onclick=finish;$('#addm').onclick=addMarker}
   else{$('#again').onclick=()=>{S.phase='setup';render()};$('#reset').onclick=()=>{S.order=[];S.phase='setup';render()}}
 }
 
@@ -256,11 +256,11 @@ function renderModal(){
 function bindSync(){
   const s=$('#shr'),c=$('#scn');
   if(s){
-    s.textContent='Export code';s.onclick=()=>{S.modal={type:'share'};render()};
+    s.textContent='Export splits';s.onclick=()=>{S.modal={type:'share'};render()};
     if(S.phase!=='done'&&!$('#inv'))s.parentNode.insertAdjacentHTML('afterend','<div class="bar"><button class="s" id="inv">Invite helpers (QR)</button></div>');
     if($('#inv'))$('#inv').onclick=()=>{S.modal={type:'invite'};render()};
   }
-  if(c){c.textContent='Import code';c.onclick=()=>{S.modal={type:'scan'};render()}}
+  if(c){c.textContent='Import splits';c.onclick=()=>{S.modal={type:'scan'};render()}}
 }
 function flashUI(){let f=$('#flash');if(!f){f=document.createElement('div');f.id='flash';f.className='flash';document.body.appendChild(f)}f.textContent=S.flash;f.style.display=S.flash?'block':'none'}
 function setFlash(msg){S.flash=msg;flashUI();clearTimeout(setFlash.t);setFlash.t=setTimeout(()=>{S.flash='';flashUI()},3500)}
@@ -328,7 +328,7 @@ function stopCam(){stopLive();if(CAM){CAM.on=false;if(CAM.stream)CAM.stream.getT
 function shareModal(el){
   const code=encodeState();
   el.innerHTML=`<div class="ov"><div class="mdl"><h2>Export</h2>
-  <p class="hint">On the other phone choose <b>Import code</b> and scan this QR, or copy the code below and paste it there. A new race loads exactly as it is now, including the running clock. If that phone already has this same race, it only fills in what it’s missing.</p>
+  <p class="hint">On the other phone choose <b>Import splits</b> and scan this QR, or copy the code below and paste it there. A new race loads exactly as it is now, including the running clock. If that phone already has this same race, it only fills in what it’s missing.</p>
   <div style="text-align:center"><canvas id="qrc" style="width:100%;max-width:340px;border-radius:8px;background:#fff;image-rendering:pixelated"></canvas><p class="hint" id="qrm"></p></div>
   <textarea id="cd" readonly style="width:100%;height:100px;font-size:12px">${esc(code)}</textarea>
   <p class="hint" id="cm" style="margin-top:6px"></p>
@@ -339,7 +339,7 @@ function shareModal(el){
   drawQR($('#qrc'),code,$('#qrm'));
 }
 function scanModal(el){
-  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Import code</h2>
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Import splits</h2>
   <p class="hint">Scan the QR shown on another phone, or paste its code. A different race (or none on this phone) loads as a new race with the clock synced. The same race only fills in what’s missing — nothing you’ve recorded is overwritten.</p>
   <button class="p" id="cam" style="width:100%">Scan QR with camera</button>
   <video id="vid" playsinline muted style="display:none;width:100%;margin-top:10px;border-radius:10px;background:#000;max-height:46vh;object-fit:cover"></video>
@@ -576,7 +576,7 @@ function liveModal(el,title,text,codeFn){
   startLive(()=>{const c=$('#qrc');if(c)drawQR(c,codeFn(),$('#qrm'))},400);
 }
 function inviteModal(el){liveModal(el,'Invite helpers','Helpers open the app, choose the <b>Helper</b> tab, and scan this QR. Finish names and markers before inviting helpers.',invCode)}
-function hresModal(el){liveModal(el,'Send to organizer','On the organizer’s phone choose <b>Import code</b> and scan this QR. It changes every second to match clocks, so keep the screen steady until it’s read. You can send again after more splits.',resCode)}
+function hresModal(el){liveModal(el,'Send to organizer','On the organizer’s phone choose <b>Import splits</b> and scan this QR. It changes every second to match clocks, so keep the screen steady until it’s read. You can send again after more splits.',resCode)}
 function hdelModal(el){
   const k=S.hm[S.hc],i=S.modal.i;
   el.innerHTML=`<div class="ov"><div class="mdl"><h2>Delete this split?</h2><p class="hint">${ord(i)} split. Splits after it move up one place.</p>
