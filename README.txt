@@ -1,4 +1,4 @@
-RACE SPLIT TAKER - OFFLINE VERSION
+RACE SPLIT TRACKER - OFFLINE VERSION
 ==================================
 
 FILES (keep them all together in one folder)
