@@ -1,4 +1,4 @@
-# Race Split Taker
+# Race Split Tracker
 
 A stopwatch for timing teams at several distance markers. Drag runners into finish order, take a split as each one crosses, see estimated arrival and finish times, sync phones, save races, and export to Excel. Works offline once installed.
 
@@ -122,12 +122,3 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - **Resume prompt** — if you close the app in the middle of a race, reopening it asks **Resume last race?** It shows how many runners and splits were recorded and what the clock would read now (the clock keeps counting while the app is closed). Tap **Resume race** to carry on, or **Discard race** (tap twice) to start over with your names and markers kept. Finished races and unfinished setups reopen on their own without asking.
 - **Saved races** (on the first screen) — every finished race is kept, up to 30. For each one you can **Open** it, send it to **Excel**, or **Delete** it (tap twice).
 - Saved data lives only on that phone. Export anything important.
-
----
-
-## Hosting (one-time, for whoever sets it up)
-
-- Upload the **individual files** (not the zip) to the top level of a public GitHub repo: `index.html`, `sw.js`, `qrgen.js`, `manifest.webmanifest`, the three icon `.png` files, and `jsQR.js`.
-- **Settings → Pages** → Deploy from a branch → `main` / `(root)`. Your link will look like `https://yourname.github.io/reponame/`.
-- For the QR scanner, download `https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js`, save it as `jsQR.js`, and upload it with the other files.
-- Reuploading a file with the same name replaces it. When you change files, change `rst-v7` to `rst-v8` (and so on) on the first line of `sw.js` so phones pick up the update.
