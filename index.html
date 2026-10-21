@@ -95,23 +95,51 @@ function sortable(el,done){
   el.querySelectorAll('.h').forEach(h=>{
     h.addEventListener('contextmenu',e=>e.preventDefault());
     h.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse'&&e.button!==0)return;
       e.preventDefault();
-      const row=h.closest('.row');h.setPointerCapture(e.pointerId);
+      const row=h.closest('.row'),rows=[...el.children],from=rows.indexOf(row);
+      if(from<0)return;
+      const rects=rows.map(r=>r.getBoundingClientRect()),mids=rects.map(r=>r.top+r.height/2);
+      const startY=e.clientY,sy0=window.scrollY,pid=e.pointerId;
+      const minDy=rects[0].top-rects[from].top,maxDy=rects[rows.length-1].top-rects[from].top;
+      let to=from,over=false;
       row.classList.add('drag');document.body.classList.add('dragging');
-      const startY=e.clientY,startTop=row.offsetTop;
-      const mv=ev=>{
-        const others=[...el.children].filter(r=>r!==row);
-        let idx=0;
-        for(const r of others){const b=r.getBoundingClientRect();if(ev.clientY>b.top+b.height/2)idx++}
-        if(idx!==[...el.children].indexOf(row))el.insertBefore(row,others[idx]||null);
-        row.style.transform=`translateY(${ev.clientY-startY-(row.offsetTop-startTop)}px) scale(1.02)`;
+      rows.forEach(r=>{r.style.transition=r===row?'none':'transform .12s'});
+      try{h.setPointerCapture(pid)}catch(_){}
+      // The dragged row is never moved in the DOM while dragging (that drops pointer capture).
+      // It just follows the finger with a transform; the other rows slide out of the way.
+      const place=()=>rows.forEach((r,i)=>{
+        if(r===row)return;
+        let dy=0;
+        if(from<to&&i>from&&i<=to)dy=rects[i-1].top-rects[i].top;
+        else if(from>to&&i>=to&&i<from)dy=rects[i+1].top-rects[i].top;
+        r.style.transform=dy?`translateY(${dy}px)`:'';
+      });
+      const move=ev=>{
+        if(ev.pointerId!==pid)return;
+        const dy=Math.max(minDy,Math.min(maxDy,ev.clientY-startY+(window.scrollY-sy0)));
+        row.style.transform=`translateY(${dy}px) scale(1.02)`;
+        const c=mids[from]+dy;let best=0,bd=1e9;
+        for(let i=0;i<mids.length;i++){const d=Math.abs(c-mids[i]);if(d<bd){bd=d;best=i}}
+        if(best!==to){to=best;place()}
       };
-      const up=()=>{
-        h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);
-        row.style.transform='';row.classList.remove('drag');document.body.classList.remove('dragging');
-        done([...el.children].map(r=>r.dataset.id));
+      const end=ev=>{
+        if(over)return;
+        if(ev&&ev.pointerId!==undefined&&ev.pointerId!==pid)return;
+        over=true;
+        window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);
+        window.removeEventListener('pointercancel',end);window.removeEventListener('blur',end);
+        document.removeEventListener('visibilitychange',end);h.removeEventListener('lostpointercapture',end);
+        try{h.releasePointerCapture(pid)}catch(_){}
+        rows.forEach(r=>{r.style.transition='none';r.style.transform=''});
+        row.classList.remove('drag');document.body.classList.remove('dragging');
+        const ids=rows.map(r=>r.dataset.id);ids.splice(from,1);ids.splice(to,0,rows[from].dataset.id);
+        done(ids);
       };
-      h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+      // Listen on window, not just the handle, so a fast drag or a release off the handle is never missed.
+      window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);
+      window.addEventListener('pointercancel',end);window.addEventListener('blur',end);
+      document.addEventListener('visibilitychange',end);h.addEventListener('lostpointercapture',end);
     });
   });
 }
