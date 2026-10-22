@@ -67,9 +67,13 @@ input[type=checkbox]{width:22px;height:22px;flex:none;padding:0}
 .flash{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));background:var(--ac);color:#fff;padding:10px 16px;border-radius:999px;font-weight:700;z-index:30;display:none;box-shadow:0 4px 14px #0004;white-space:nowrap}
 textarea{background:var(--card);color:var(--tx);border:1px solid var(--ln);border-radius:10px;padding:8px;font-family:ui-monospace,Menlo,monospace}
 summary{cursor:pointer;margin:8px 0}
+.cr{text-align:center;margin:18px 0 6px}
+.lnk{font:inherit;font-size:13px;background:none;border:0;color:var(--mut);text-decoration:underline;cursor:pointer;padding:8px}
+.lic{font-size:11px;white-space:pre-wrap;color:var(--mut);margin:6px 0 0}
 </style></head><body><main id="app"></main><div id="modal"></div>
 
 
+<!-- Third-party code: qrgen.js (MIT, Kazuhiko Arase), jsQR.js (Apache-2.0, Cosmo Wolfe and contributors). See THIRD-PARTY-LICENSES.txt -->
 <script src="qrgen.js"></script>
 <script src="jsQR.js"></script>
 <script>
@@ -161,9 +165,10 @@ function draw(){
     <p class="hint">Add each point where you’ll take splits by its distance. Markers are named automatically, and each can use miles or kilometers, so you can mix them.</p>
     <div class="add"><input id="mdist" type="number" step="any" min="0" inputmode="decimal" placeholder="Distance"><select id="munit" class="sm"><option value="mi" ${S.munit!=='km'?'selected':''}>mi</option><option value="km" ${S.munit==='km'?'selected':''}>km</option></select><button class="s" id="addmk">Add</button></div>
     <div class="tabs" style="flex-wrap:wrap">${S.marks.map((k,i)=>`<button class="tab" data-m="${i}">${i+1}. ${esc(k.label)} ×</button>`).join('')}</div>
-    <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>`;
+    <button class="p" id="go" style="width:100%;margin-top:6px" ${S.order.length<1?'disabled':''}>Continue</button>
+    <p class="cr"><button class="lnk" id="crd">Credits &amp; licenses</button></p>`;
     const add=()=>{const v=$('#in').value.trim();if(!v)return;S.order.push({id:S.nid++,name:v});render();$('#in').focus()};
-    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};$('#tms').onclick=()=>{S.modal={type:'teams'};render()};bindSeg();
+    $('#addb').onclick=add;$('#in').onkeydown=e=>{if(e.key==='Enter')add()};$('#crd').onclick=()=>{S.modal={type:'credits'};render()};bindSync();$('#hst').onclick=()=>{S.modal={type:'hist'};render()};$('#tms').onclick=()=>{S.modal={type:'teams'};render()};bindSeg();
     a.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.order=S.order.filter(p=>p.id!=b.dataset.x);render()});
     sortable($('#lst'),ids=>{S.order=ids.map(byId);render()});
     const addMk=()=>{const v=$('#mdist').value.trim();if(!(+v>0))return;const k={dist:v,unit:$('#munit').value};relabel(k,0);S.munit=k.unit;S.marks.push(k);S.marks.sort((x,y)=>distKm(x)-distKm(y));render();$('#mdist').focus()};
@@ -249,7 +254,7 @@ function renderModal(){
   const el=$('#modal'),md=S.modal;
   stopCam();if(!md){el.innerHTML='';return}
   const m=M();
-  if(md.type==='resume')return resumeModal(el);if(md.type==='teams')return teamsModal(el);if(md.type==='invite')return inviteModal(el);if(md.type==='hres')return hresModal(el);if(md.type==='hdel')return hdelModal(el);if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
+  if(md.type==='credits')return creditsModal(el);if(md.type==='resume')return resumeModal(el);if(md.type==='teams')return teamsModal(el);if(md.type==='invite')return inviteModal(el);if(md.type==='hres')return hresModal(el);if(md.type==='hdel')return hdelModal(el);if(md.type==='hist')return histModal(el);if(md.type==='share')return shareModal(el);if(md.type==='scan')return scanModal(el);if(md.type==='time'){
     el.innerHTML=`<div class="ov"><div class="mdl"><h2>Edit time</h2>
     <p class="hint">${ord(md.i)} runner · ${esc(byId(m.actual[md.i]).name)}</p>
     <input id="tt" value="${esc(md.t)}" inputmode="decimal">
@@ -513,6 +518,27 @@ function resumeModal(el){
     SAVE_OK=true;render();setFlash('Race discarded — names kept');
   };
 }
+function creditsModal(el){
+  el.innerHTML=`<div class="ov"><div class="mdl"><h2>Credits &amp; licenses</h2>
+  <p class="hint">This app uses these open-source libraries for QR codes:</p>
+  <div class="card"><b>jsQR</b> — QR code scanning<div class="hint" style="margin:2px 0 0">© Cosmo Wolfe and contributors · Apache License 2.0<br><a href="https://github.com/cozmo/jsQR" target="_blank" rel="noopener" style="color:var(--ac)">github.com/cozmo/jsQR</a></div></div>
+  <div class="card"><b>QRCode for JavaScript</b> — QR code generation<div class="hint" style="margin:2px 0 0">© 2009 Kazuhiko Arase · MIT License<br>Obtained via qrcode-terminal (Gord Tanner &amp; Michael Brooks, Apache License 2.0)</div></div>
+  <details><summary>MIT License text</summary><p class="lic">Copyright (c) 2009 Kazuhiko Arase
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p></details>
+  <details><summary>Apache License 2.0 (jsQR)</summary><p class="lic">Licensed under the Apache License, Version 2.0 (the "License"); you may not use this software except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+The full license text is in <a href="THIRD-PARTY-LICENSES.txt" target="_blank" style="color:var(--ac)">THIRD-PARTY-LICENSES.txt</a>.</p></details>
+  <p class="hint" style="margin-top:10px">"QR Code" is a registered trademark of DENSO WAVE INCORPORATED.</p>
+  <div class="bar" style="margin-top:12px"><button class="s" id="mc">Close</button></div></div></div>`;
+  $('#mc').onclick=()=>{S.modal=null;render()};
+}
 function histModal(el){
   const h=getHist();
   el.innerHTML=`<div class="ov"><div class="mdl"><h2>Saved races</h2>
@@ -620,7 +646,9 @@ function drawHelper(){
     <p class="hint">Helpers time splits for an organizer. Ask the organizer to open <b>Invite helpers</b>, then scan their QR here. You don’t need the race clock — tap <b>Take split</b> each time a runner passes your marker, then drag the names into the order they came by.</p>
     <button class="p" id="hscan" style="width:100%">Scan organizer’s QR</button>
     ${inv?'<button class="s" id="hcont" style="width:100%;margin-top:10px">Continue current helper session</button>':''}
-    <p class="hint" style="margin-top:10px">Camera not working? Tap the button above and paste the organizer’s text code instead. Pasted codes can’t match clocks, so scanning is more accurate.</p>`;
+    <p class="hint" style="margin-top:10px">Camera not working? Tap the button above and paste the organizer’s text code instead. Pasted codes can’t match clocks, so scanning is more accurate.</p>
+    <p class="cr"><button class="lnk" id="crd">Credits &amp; licenses</button></p>`;
+    $('#crd').onclick=()=>{S.modal={type:'credits'};render()};
     bindSeg();$('#hscan').onclick=()=>{S.modal={type:'scan'};render()};
     if(inv)$('#hcont').onclick=()=>{S.phase=S.hm.length?'htime':'hsetup';render()};
     return;

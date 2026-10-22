@@ -86,7 +86,7 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - **New race** — if the phone has no race, or the code is a different race, it loads the whole race (names, markers, distances, splits) and the clock stays in sync.
 - **Same race** — if the phone already has that race, importing only **fills in what's missing** (runners, markers, splits). Nothing already recorded is overwritten, so two phones can time different markers and swap codes to combine.
 - Sync happens when you import, not live. Use **Refresh** in the export screen after taking more splits.
-- **Scanner note** — scanning needs the `jsQR.js` file in the app folder (see Hosting). Without it, use Paste.
+- **Scanner note** — scanning needs the `jsQR.js` file in the app folder. Without it, use Paste.
 
 ---
 
@@ -122,3 +122,12 @@ A stopwatch for timing teams at several distance markers. Drag runners into fini
 - **Resume prompt** — if you close the app in the middle of a race, reopening it asks **Resume last race?** It shows how many runners and splits were recorded and what the clock would read now (the clock keeps counting while the app is closed). Tap **Resume race** to carry on, or **Discard race** (tap twice) to start over with your names and markers kept. Finished races and unfinished setups reopen on their own without asking.
 - **Saved races** (on the first screen) — every finished race is kept, up to 30. For each one you can **Open** it, send it to **Excel**, or **Delete** it (tap twice).
 - Saved data lives only on that phone. Export anything important.
+
+---
+
+## Third-party software and licenses
+
+- **jsQR** (QR code scanning, `jsQR.js`) by Cosmo Wolfe and contributors, licensed under the Apache License 2.0. https://github.com/cozmo/jsQR
+- **QRCode for JavaScript** (QR code generation, `qrgen.js`) by Kazuhiko Arase, licensed under the MIT License, obtained via qrcode-terminal by Gord Tanner and Michael Brooks (Apache License 2.0).
+
+The app also shows these credits in-app: tap **Credits & licenses** at the bottom of the first screen (Organizer or Helper). Full license texts are in `THIRD-PARTY-LICENSES.txt`. Keep that file and the notice comments at the top of `jsQR.js` and `qrgen.js` when you copy or host the app. "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.

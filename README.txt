@@ -3,8 +3,9 @@ RACE SPLIT TRACKER - OFFLINE VERSION
 
 FILES (keep them all together in one folder)
   index.html, qrgen.js, sw.js, manifest.webmanifest,
+  THIRD-PARTY-LICENSES.txt,
   icon-192.png, icon-512.png, apple-touch-icon.png
-  jsQR.js   <- you add this one (see "QR scanner" below)
+  jsQR.js
 
 1) HOST IT (needs internet once)
    Upload the whole folder to any free HTTPS host, e.g.
@@ -18,13 +19,11 @@ FILES (keep them all together in one folder)
    After that it works with no signal.
 
 3) QR SCANNER
-   Showing a QR code works as-is. Scanning needs the jsQR library, which could
-   not be downloaded when this package was built. Add it once:
-   - Download https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js
-   - Save it as jsQR.js in the same folder, then upload the folder again.
-   Without it, Import still works by pasting the code.
+   jsQR.js is already included in this folder, so scanning works as-is.
+   Keep jsQR.js in the same folder as index.html. Without it, Import still
+   works by pasting the code.
 
-UPDATING: change sw.js's CACHE name (currently rst-v2 -> rst-v3) when you replace files
+UPDATING: change sw.js's CACHE name (currently rst-v11 -> rst-v12) when you replace files
 so phones pick up the new version.
 
 NEW IN THIS VERSION
@@ -35,3 +34,11 @@ NEW IN THIS VERSION
   - "Export to Excel" after a race makes an .xlsx with bold names and sized
     columns: one row per runner, one column of times per marker.
     "Copy table" copies the same table to paste into Excel/Sheets.
+
+THIRD-PARTY LICENSES
+  jsQR (jsQR.js) - Cosmo Wolfe and contributors - Apache License 2.0
+  QRCode for JavaScript (qrgen.js) - Kazuhiko Arase - MIT License
+  Full texts are in THIRD-PARTY-LICENSES.txt. Keep that file (and the notice
+  comments at the top of jsQR.js and qrgen.js) with the app when you host it.
+  The app also shows these credits: tap "Credits & licenses" at the bottom of
+  the first screen.

@@ -1,5 +1,5 @@
-const CACHE='rst-v10';
-const FILES=['./','index.html','qrgen.js','jsQR.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
+const CACHE='rst-v11';
+const FILES=['./','index.html','qrgen.js','jsQR.js','THIRD-PARTY-LICENSES.txt','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE)
     .then(c=>Promise.all(FILES.map(f=>fetch(new Request(f,{cache:'reload'})).then(r=>{if(r.ok)return c.put(f,r)}).catch(()=>{}))))
